@@ -1361,7 +1361,11 @@ function sendChat(){
   const inp = document.getElementById('chatText');
   const text = inp.value.trim(); if(!text) return;
   meSay(text); inp.value='';
-  if(/回礼|该回|该随|随多少/.test(text)){ answerReturn(text); return; }
+  if(/回礼|该回多少|该回礼|该随|随多少/.test(text)){ answerReturn(text); return; }
+  const bookIntent = /(\d+(?:\.\d+)?)\s*(万|千|块|元)/.test(text)
+    || /随|红包|人情|婚礼|婚事|丧事|满月|乔迁|寿宴|升学|压岁|记[账一上]|答谢/.test(text)
+    || (/[送收给包]/.test(text) && /家|礼/.test(text));
+  if(!bookIntent){ chatFree(text); return; }
   if(!aiReady()){ offlineParse(text); return; }
   catThinking();
   glmCall([
@@ -1384,6 +1388,29 @@ function offlineParse(text){
   const tx = parseTx(text);
   if(tx){ pendingChatTx = tx; showConfirm(tx); }
   else catSay('咪？没听太懂……试试带上「金额」和「事情」，比如「随了李家乔迁 500 块」。');
+}
+const CAT_CHAT_OFFLINE = ['咕噜咕噜~（用头蹭你的手）','喵呜？本账房只精通账本和鱼干，别的说不好……','喵！那咱们聊点账本上的事？最近有谁家要办事吗？','（尾巴摇了摇）主人说啥都对，喵~'];
+function chatFree(text){
+  if(!aiReady()){
+    catSay(CAT_CHAT_OFFLINE[Math.floor(Math.random()*CAT_CHAT_OFFLINE.length)] + '（在设置里接上 Key 我就能正经聊天啦）');
+    return;
+  }
+  const hist = [];
+  document.querySelectorAll('#chatMsgs .msg').forEach(m=>{
+    if(m.id==='catThinking') return;
+    hist.push({role: m.classList.contains('me')?'user':'assistant', content:(m.innerText||'').replace(/\s+/g,' ').slice(0,120)});
+  });
+  catThinking();
+  glmCall([
+    {role:'system',content:'你是"账房猫"，一只会说话的橘猫账房先生，帮主人打理人情账。现在主人在和你闲聊，不是记账指令。用中文简短回复（60字以内），语气可爱自然，偶尔带"喵"，不要太腻。聊到人情往来、送礼、随礼话题时，可以顺带问一句要不要帮你记账。只输出回复文本，不要JSON，不要任何前缀。'},
+    ...hist.slice(-8)
+  ]).then(raw=>{
+    catDone();
+    catSay(raw.slice(0,200));
+  }).catch(()=>{
+    catDone();
+    catSay('（线路堵了一下）' + CAT_CHAT_OFFLINE[Math.floor(Math.random()*CAT_CHAT_OFFLINE.length)]);
+  });
 }
 function parseTx(text){
   let amount = null, dir = /收|收到|进账|给了我们|送给我们/.test(text) && !/随|包了|给了他家|送给他家/.test(text) ? 'in' : (/随|送|包了|给|收/.test(text)?(/给了我们|送给我们|收到|收了.*礼/.test(text)?'in':'out'):null);
