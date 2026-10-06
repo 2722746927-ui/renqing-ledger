@@ -1,0 +1,1654 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我家的人情账 · 账房猫</title>
+<style>
+  :root {
+    --bg: #F6F5F1; --card: #FFFFFF; --ink: #33312C; --ink-2: #8A867C;
+    --line: #ECEAE3; --accent: #F5CE7A; --accent-soft: #FBF3DF; --accent-ink: #8A6A1F;
+    --warm: #D97B4A; --warm-soft: #FAEDE6; --green: #7BA05B; --green-soft: #EDF3E7;
+    --shadow: 0 2px 12px rgba(60,55,40,.06); --radius: 16px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { background:var(--bg); color:var(--ink); font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; }
+  button { font-family:inherit; }
+  .phone { max-width:420px; margin:0 auto; min-height:100vh; padding:20px 16px 110px; position:relative; }
+
+  /* ===== 通用组件 ===== */
+  .view { display:none; }
+  .view.active { display:block; }
+  .subhead { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+  .subhead .back { width:36px; height:36px; border:none; border-radius:12px; background:var(--card);
+    box-shadow:var(--shadow); color:var(--ink); font-size:17px; cursor:pointer; }
+  .subhead h1 { font-size:19px; }
+  .card { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px; margin-bottom:12px; }
+  .card h3 { font-size:15px; margin-bottom:10px; }
+  .muted { color:var(--ink-2); font-size:12px; }
+  .btn {
+    width:100%; border:none; border-radius:14px; padding:14px; font-size:15px; font-weight:700;
+    background:var(--accent); color:#4A3A10; cursor:pointer; transition:transform .12s ease;
+  }
+  .btn:active { transform:scale(.97); }
+  .btn.ghost { background:var(--card); color:var(--ink); box-shadow:var(--shadow); }
+  .btn.small { width:auto; padding:8px 14px; font-size:13px; border-radius:10px; }
+  input, select, textarea {
+    width:100%; border:1.5px solid var(--line); border-radius:12px; padding:12px;
+    font-size:14px; font-family:inherit; background:#FDFDFB; color:var(--ink); margin-bottom:10px;
+  }
+  input:focus, select:focus { outline:none; border-color:var(--accent); }
+  label { font-size:12px; color:var(--ink-2); display:block; margin:8px 0 4px; }
+  .rowflex { display:flex; gap:10px; }
+  .rowflex > * { flex:1; }
+  .pill { display:inline-block; padding:3px 10px; border-radius:999px; font-size:11px; background:var(--accent-soft); color:var(--accent-ink); margin-right:6px; }
+  .empty { text-align:center; color:var(--ink-2); font-size:13px; padding:30px 0; }
+
+  /* ===== 锁屏 ===== */
+  .lock { min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:30px; }
+  .lock .cat-big { width:96px; height:96px; margin-bottom:14px; }
+  .lock h1 { font-size:20px; margin-bottom:4px; }
+  .lock p { color:var(--ink-2); font-size:13px; margin-bottom:24px; }
+  .lock input { width:240px; text-align:center; letter-spacing:4px; }
+  .lock .err { color:var(--warm); font-size:12px; height:18px; margin-bottom:8px; }
+  .lock .link { color:var(--ink-2); font-size:12px; margin-top:16px; text-decoration:underline; cursor:pointer; }
+
+  /* ===== 首页 ===== */
+  .topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+  .topbar .cat-mini { width:44px; height:44px; }
+  .topbar h1 { font-size:21px; }
+  .topbar .slogan { font-size:11px; color:var(--ink-2); margin-top:2px; }
+  .top-icons { display:flex; gap:6px; }
+  .icon-btn { width:38px; height:38px; border:none; border-radius:12px; background:var(--card);
+    box-shadow:var(--shadow); display:flex; align-items:center; justify-content:center; color:var(--ink); cursor:pointer; }
+  .icon-btn svg { width:18px; height:18px; }
+  .feed-bar {
+    background:linear-gradient(90deg,var(--accent-soft),#fff); border-radius:var(--radius);
+    padding:10px 14px; margin-bottom:14px; display:flex; align-items:center; gap:10px;
+    cursor:pointer; box-shadow:var(--shadow);
+  }
+  .feed-bar .paw { font-size:20px; }
+  .feed-bar b { font-size:13px; }
+  .feed-bar span { font-size:11px; color:var(--ink-2); }
+  .feed-bar .arrow { margin-left:auto; font-size:24px; color:var(--ink-2); line-height:1; }
+  .overview { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:14px; cursor:pointer; }
+  .ov-card { background:var(--card); border-radius:var(--radius); padding:13px 12px; box-shadow:var(--shadow); }
+  .ov-card span { font-size:11px; color:var(--ink-2); display:block; margin-bottom:5px; }
+  .ov-card strong { font-size:16px; }
+  .ov-card.warn strong { color:var(--warm); }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:22px; }
+  .cell {
+    position:relative;
+    background:var(--card); border:none; border-radius:var(--radius); box-shadow:var(--shadow);
+    padding:15px 14px; display:flex; flex-direction:column; align-items:flex-start; gap:7px;
+    cursor:pointer; text-align:left; color:var(--ink); transition:transform .12s ease;
+  }
+  .cell:active { transform:scale(.97); }
+  .cell .ico { width:34px; height:34px; border-radius:10px; background:var(--accent-soft);
+    color:var(--accent-ink); display:flex; align-items:center; justify-content:center; }
+  .cell .ico svg { width:17px; height:17px; }
+  .cell b { font-size:14px; font-weight:600; }
+  .cell em { font-size:11px; color:var(--ink-2); font-style:normal; }
+  .cell .peek { position:absolute; top:7px; right:8px; width:20px; height:20px; transform:rotate(10deg); }
+  .cell.big {
+    grid-column:span 2; flex-direction:row; align-items:center; gap:12px;
+    padding:17px 16px; background:var(--accent-soft); box-shadow:0 4px 14px rgba(216,178,90,.25);
+  }
+  .cell.big .ico { width:46px; height:46px; border-radius:13px; background:var(--accent); color:#4A3A10; }
+  .cell.big .ico svg { width:22px; height:22px; }
+  .cell.big .big-txt { display:flex; flex-direction:column; gap:3px; }
+  .cell.big b { font-size:17px; }
+  .cell.big em { font-size:12px; }
+  .cell.big .peek { position:static; width:48px; height:48px; margin-left:auto; transform:rotate(6deg); }
+  .tabs { display:flex; gap:8px; margin-bottom:12px; }
+  .tabbtn { flex:1; padding:11px; border-radius:12px; border:1.5px solid var(--line); background:var(--card); font-weight:600; font-size:14px; color:var(--ink); cursor:pointer; }
+  .tabbtn.active { background:var(--ink); color:var(--card); border-color:var(--ink); }
+  .sheet { width:100%; border-collapse:collapse; font-size:12.5px; }
+  .sheet th { text-align:left; font-weight:600; color:var(--ink-2); padding:9px 10px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  .sheet td { padding:9px 10px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  .sheet tr:last-child td { border-bottom:none; }
+  .sec-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:9px; }
+  .sec-head h2 { font-size:15px; }
+  .sec-head a { font-size:12px; color:var(--ink-2); text-decoration:none; cursor:pointer; }
+  .list { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; }
+  .list > .row { display:flex; align-items:center; gap:12px; padding:13px 14px; border-bottom:1px solid var(--line); cursor:pointer; }
+  .list > .row:last-child { border-bottom:none; }
+  .tag { flex:none; width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; }
+  .tag.out { background:var(--warm-soft); color:var(--warm); }
+  .tag.in { background:var(--green-soft); color:var(--green); }
+  .tag.n { background:var(--accent-soft); color:var(--accent-ink); }
+  .row .info { flex:1; min-width:0; }
+  .row .info p { font-size:14px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .row .info span { font-size:11px; color:var(--ink-2); display:block; margin-top:2px; }
+  .row b.amount { font-size:14px; }
+  .row b.amount.out { color:var(--warm); }
+  .row b.amount.in { color:var(--green); }
+  .addbtn { border:1.5px dashed var(--line); background:none; border-radius:var(--radius); padding:13px;
+    width:100%; color:var(--ink-2); font-size:13px; cursor:pointer; margin-top:10px; }
+
+  /* ===== 底部栏 ===== */
+  .tabbar { position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:420px;
+    background:var(--card); border-top:1px solid var(--line); display:flex; align-items:center;
+    justify-content:space-between; padding:9px 22px calc(9px + env(safe-area-inset-bottom)); z-index:40; }
+  .tab { display:flex; flex-direction:column; align-items:center; gap:3px; font-size:10px; color:var(--ink-2); width:54px; cursor:pointer; }
+  .tab.active { color:var(--ink); }
+  .tab svg { width:20px; height:20px; }
+  .ai-btn { flex:1; margin:0 8px; border:none; cursor:pointer; background:var(--accent); color:#4A3A10;
+    font-size:14px; font-weight:700; padding:12px 0; border-radius:999px;
+    box-shadow:0 6px 16px rgba(216,178,90,.45); display:flex; align-items:center; justify-content:center; gap:6px;
+    transition:transform .12s ease; }
+  .ai-btn:active { transform:scale(.95); }
+  .ai-btn .cat-face { width:20px; height:20px; }
+
+  /* ===== 聊天面板（账房猫） ===== */
+  .chat-mask { position:fixed; inset:0; background:rgba(40,36,28,.4); z-index:60; display:none; }
+  .chat-panel { position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:420px;
+    background:var(--bg); border-radius:20px 20px 0 0; z-index:61; display:none;
+    flex-direction:column; height:78vh; }
+  .chat-head { display:flex; align-items:center; gap:10px; padding:14px 16px; border-bottom:1px solid var(--line); }
+  .chat-head .cat-face { width:36px; height:36px; }
+  .chat-head b { font-size:15px; display:block; }
+  .chat-head span { font-size:11px; color:var(--ink-2); }
+  .chat-close { margin-left:auto; border:none; background:none; font-size:20px; color:var(--ink-2); cursor:pointer; }
+  .chat-msgs { flex:1; overflow-y:auto; padding:14px 14px 6px; }
+  .msg { max-width:82%; margin-bottom:10px; padding:10px 13px; border-radius:14px; font-size:13.5px; line-height:1.55; }
+  .msg.cat { background:var(--card); box-shadow:var(--shadow); border-top-left-radius:4px; }
+  .msg.me { background:var(--accent); color:#4A3A10; margin-left:auto; border-top-right-radius:4px; }
+  .confirm-card { background:var(--card); border-radius:14px; box-shadow:var(--shadow); padding:12px; margin-bottom:10px; font-size:13px; }
+  .confirm-card .f { display:flex; justify-content:space-between; padding:4px 0; }
+  .confirm-card .f span { color:var(--ink-2); }
+  .chat-input { display:flex; gap:8px; padding:10px 12px calc(12px + env(safe-area-inset-bottom)); }
+  .chat-input input { margin:0; flex:1; }
+  .chat-input button { border:none; background:var(--accent); color:#4A3A10; font-weight:700;
+    border-radius:12px; padding:0 18px; cursor:pointer; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin:4px 0 10px; }
+  .chip { border:none; background:var(--card); box-shadow:var(--shadow); border-radius:999px;
+    padding:7px 13px; font-size:12px; color:var(--ink); cursor:pointer; }
+
+  /* ===== 弹窗 ===== */
+  .modal-mask { position:fixed; inset:0; background:rgba(40,36,28,.4); z-index:80; display:none;
+    align-items:flex-end; justify-content:center; }
+  .modal { width:100%; max-width:420px; background:var(--bg); border-radius:20px 20px 0 0; padding:20px 16px calc(24px + env(safe-area-inset-bottom)); }
+  .modal h3 { font-size:16px; margin-bottom:12px; }
+
+  /* ===== 统计条形 ===== */
+  .bar-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:12px; }
+  .bar-row .bl { width:64px; flex:none; color:var(--ink-2); }
+  .bar-row .track { flex:1; height:10px; background:var(--line); border-radius:999px; overflow:hidden; }
+  .bar-row .fill { height:100%; border-radius:999px; background:var(--accent); }
+  .bar-row .fill.warm { background:var(--warm); }
+  .bar-row .fill.green { background:var(--green); }
+  .bar-row .bv { width:70px; flex:none; text-align:right; }
+
+  /* ===== Toast ===== */
+  .toast { position:fixed; left:50%; bottom:120px; transform:translateX(-50%) translateY(20px);
+    background:var(--ink); color:#fff; font-size:13px; padding:11px 18px; border-radius:999px;
+    opacity:0; transition:all .25s ease; z-index:99; pointer-events:none; }
+  .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+  /* ===== 分享卡片预览 ===== */
+  .share-canvas-wrap { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:10px; }
+  #shareCanvas { width:100%; display:block; border-radius:10px; }
+  .suggest-item { display:flex; align-items:center; gap:10px; padding:11px 0; border-bottom:1px solid var(--line); font-size:13.5px; }
+  .suggest-item:last-child { border-bottom:none; }
+  .suggest-item .pr { margin-left:auto; color:var(--accent-ink); font-weight:700; }
+  .seg { display:flex; background:var(--card); border-radius:12px; padding:4px; box-shadow:var(--shadow); margin-bottom:14px; }
+  .seg button { flex:1; border:none; background:none; padding:9px; border-radius:9px; font-size:13px; color:var(--ink-2); cursor:pointer; }
+  .seg button.on { background:var(--accent); color:#4A3A10; font-weight:700; }
+  .manual-step { display:flex; gap:12px; margin-bottom:14px; }
+  .manual-step .num { flex:none; width:26px; height:26px; border-radius:50%; background:var(--accent);
+    color:#4A3A10; font-weight:700; font-size:13px; display:flex; align-items:center; justify-content:center; }
+  .manual-step p { font-size:13.5px; line-height:1.6; }
+  .rank-row .diff-neg { color:var(--warm); }
+  .rank-row .diff-pos { color:var(--green); }
+
+  /* ===== 猫窝 ===== */
+  .cat-stage-card { position:relative; }
+  #catStage { position:relative; display:inline-block; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .cat-bubble { background:var(--ink); color:#fff; font-size:12.5px; padding:7px 14px;
+    border-radius:14px 14px 14px 4px; display:inline-block; margin-bottom:2px; }
+  .cat-bubble.pop { animation:bubblePop .35s ease; }
+  #bigCat { display:block; }
+  #bigCat #catTail { animation:tailWag 2.8s ease-in-out infinite; }
+  #bigCat #catBody { transform-box:fill-box; transform-origin:center; animation:breathe 3.4s ease-in-out infinite; }
+  #bigCat #catHead { transform-box:fill-box; transform-origin:center; }
+  #bigCat #eyeOpen { transform-box:fill-box; transform-origin:center; animation:blink 4.6s infinite; }
+  #bigCat #earL, #bigCat #earR { transform-box:fill-box; transform-origin:bottom center; transition:transform .3s ease; }
+  #bigCat.stage-baby { transform:scale(.82); transform-origin:50% 88%; }
+  #bigCat.stage-fat #catBody { transform:scale(1.14,1.06); }
+  #bigCat.hungry #earL { transform:rotate(15deg); }
+  #bigCat.hungry #earR { transform:rotate(-15deg); }
+  #bigCat.eating #catHead { animation:munch .45s ease-in-out 3; }
+  #bigCat.petting #catHead { transform:rotate(-7deg) translateY(3px); }
+  .kibble { position:absolute; font-size:22px; animation:kibbleFall 1.2s ease-in forwards; pointer-events:none; }
+  .heart-float { position:absolute; font-size:17px; animation:floatHeart 1.5s ease-out forwards; pointer-events:none; }
+  @keyframes tailWag { 0%,100%{transform:rotate(0deg)} 50%{transform:rotate(10deg)} }
+  @keyframes blink { 0%,93%,100%{transform:scaleY(1)} 96%{transform:scaleY(.1)} }
+  @keyframes breathe { 0%,100%{transform:scale(1)} 50%{transform:scale(1.02)} }
+  @keyframes munch { 0%,100%{transform:translateY(0)} 50%{transform:translateY(5px) rotate(2deg)} }
+  @keyframes kibbleFall { 0%{transform:translateY(-46px) scale(.7);opacity:0} 25%{opacity:1} 100%{transform:translateY(54px) scale(1);opacity:0} }
+  @keyframes floatHeart { 0%{transform:translateY(6px) scale(.5);opacity:0} 30%{opacity:1} 100%{transform:translateY(-72px) scale(1.2);opacity:0} }
+  @keyframes bubblePop { 0%{transform:scale(.6);opacity:0} 65%{transform:scale(1.08)} 100%{transform:scale(1);opacity:1} }
+  #catThinking { opacity:.6; }
+</style>
+</head>
+<body>
+
+<!-- 猫咪吉祥物 -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="cat" viewBox="0 0 100 100">
+      <path d="M22 34 L18 12 L38 22 Z" fill="#F5CE7A" stroke="#8A6A1F" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M78 34 L82 12 L62 22 Z" fill="#F5CE7A" stroke="#8A6A1F" stroke-width="3" stroke-linejoin="round"/>
+      <circle cx="50" cy="56" r="34" fill="#F5CE7A" stroke="#8A6A1F" stroke-width="3"/>
+      <circle cx="38" cy="52" r="3.6" fill="#4A3A10"/>
+      <circle cx="62" cy="52" r="3.6" fill="#4A3A10"/>
+      <path d="M46 62 Q50 66 54 62" fill="none" stroke="#4A3A10" stroke-width="2.6" stroke-linecap="round"/>
+      <path d="M30 60 L14 58 M30 66 L15 68 M70 60 L86 58 M70 66 L85 68" stroke="#8A6A1F" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="30" cy="63" r="4.5" fill="#F0B7A6" opacity=".7"/>
+      <circle cx="70" cy="63" r="4.5" fill="#F0B7A6" opacity=".7"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="phone" id="app" style="display:none">
+
+<!-- ============ 首页 ============ -->
+<section id="view-home" class="view active">
+  <header class="topbar">
+    <div style="display:flex;align-items:center;gap:10px">
+      <svg class="cat-mini"><use href="#cat"/></svg>
+      <div>
+        <h1 id="homeBookName">我家的人情账</h1>
+        <div class="slogan">情谊记在心里，数目写在纸上</div>
+      </div>
+    </div>
+    <div class="top-icons">
+      <button class="icon-btn" onclick="go('view-settings')" aria-label="设置">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="15" cy="7" r="2.2" fill="#fff"/><circle cx="8" cy="12" r="2.2" fill="#fff"/><circle cx="17" cy="17" r="2.2" fill="#fff"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="feed-bar" onclick="openCat()">
+    <span class="paw">🐾</span>
+    <div><b>猫窝</b><br><span id="feedSub">猫粮仓 0 颗 · 点进喂猫</span></div>
+    <span class="arrow">›</span>
+  </div>
+
+  <div class="overview" onclick="go('view-stats')">
+    <div class="ov-card"><span>随出</span><strong id="ovOut">¥0</strong></div>
+    <div class="ov-card"><span>收进</span><strong id="ovIn">¥0</strong></div>
+    <div class="ov-card warn"><span>净差额</span><strong id="ovNet">¥0</strong></div>
+  </div>
+
+  <div class="grid">
+    <button class="cell big" onclick="openAdd()">
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span>
+      <span class="big-txt"><b>记一笔</b><em>随手记往来 · 猫粮 +1 🐾</em></span>
+      <svg class="peek"><use href="#cat"/></svg>
+    </button>
+    <button class="cell" onclick="renderHouseholds();go('view-households')">
+      <svg class="peek"><use href="#cat"/></svg>
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+      <b>户档案</b><em>亲友一户一档</em>
+    </button>
+    <button class="cell" onclick="openInvite()">
+      <svg class="peek"><use href="#cat"/></svg>
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>
+      <b>拍照记账</b><em>请帖 & 礼金红本本</em>
+    </button>
+    <button class="cell" onclick="openExchange()">
+      <svg class="peek"><use href="#cat"/></svg>
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9Z"/></svg></span>
+      <b>AI 换物</b><em>回礼 & 送礼参谋</em>
+    </button>
+    <button class="cell" onclick="renderReminders();go('view-reminders')">
+      <svg class="peek"><use href="#cat"/></svg>
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></span>
+      <b>节日提醒</b><em>三节两寿不漏</em>
+    </button>
+  </div>
+
+  <div class="sec-head"><h2>最近动态</h2><a onclick="renderHouseholds();go('view-households')">全部往来</a></div>
+  <div class="list" id="recentList"></div>
+</section>
+
+<!-- ============ 记一笔 ============ -->
+<section id="view-add" class="view">
+  <div class="subhead"><button class="back" onclick="go('view-home')">‹</button><h1>记一笔</h1></div>
+  <div class="card">
+    <label>方向</label>
+    <div class="seg" id="addDirSeg">
+      <button class="on" data-v="out" onclick="setDir('out')">我随出</button>
+      <button data-v="in" onclick="setDir('in')">我收进</button>
+    </div>
+    <label>这户人家 *</label>
+    <select id="addHousehold"></select>
+    <button class="btn ghost small" style="margin-bottom:12px" onclick="quickAddHousehold()">＋ 新建一户</button>
+    <label>事件类型 *</label>
+    <select id="addType"></select>
+    <label>日期（阳历）*</label>
+    <input type="date" id="addDate">
+    <label>农历（可选，如 八月十五）</label>
+    <input type="text" id="addLunar" placeholder="老人生日、忌日建议填农历">
+    <label>形式</label>
+    <div class="seg" id="addKindSeg">
+      <button class="on" data-v="cash" onclick="setKind('cash')">现金</button>
+      <button data-v="gift" onclick="setKind('gift')">实物礼品</button>
+    </div>
+    <div id="cashBox">
+      <label>金额（元）*</label>
+      <input type="number" id="addAmount" placeholder="800">
+    </div>
+    <div id="giftBox" style="display:none">
+      <label>礼品名称 *</label>
+      <input type="text" id="giftName" placeholder="茶叶礼盒">
+      <label>估值（元，不知道就留空 = 心意型不计价）</label>
+      <input type="number" id="giftValue" placeholder="300">
+    </div>
+    <label>经手人</label>
+    <select id="addHandler"></select>
+    <label>对方当事人（如：他家闺女）</label>
+    <input type="text" id="addCounterpart" placeholder="可不填">
+    <label>备注</label>
+    <input type="text" id="addNote" placeholder="如：县城饭店办的">
+    <button class="btn" onclick="saveTx()">保存（记好啦喂猫粮 🐾）</button>
+  </div>
+</section>
+
+<!-- ============ 户档案 ============ -->
+<section id="view-households" class="view">
+  <div class="subhead"><button class="back" onclick="go('view-home')">‹</button><h1>户档案</h1></div>
+  <div class="list" id="householdList"></div>
+  <button class="addbtn" onclick="editHousehold(null)">＋ 新建一户</button>
+</section>
+
+<!-- ============ 户详情 ============ -->
+<section id="view-hdetail" class="view">
+  <div class="subhead"><button class="back" onclick="renderHouseholds();go('view-households')">‹</button><h1 id="hdName">户详情</h1></div>
+  <div class="card" id="hdSuggest"></div>
+  <div class="sec-head" style="margin-top:4px"><h2>往来明细</h2><span><a id="hdToggle" onclick="hdToggleView()">表格视图</a> · <a onclick="exportHouseholdCsv()">导出Excel</a> · <a onclick="editHousehold(currentH)">编辑资料</a></span></div>
+  <div class="list" id="hdTimeline"></div>
+  <div class="list" id="hdTableWrap" style="display:none;overflow-x:auto"></div>
+</section>
+
+<!-- ============ 拍照记账（请帖 & 红本本） ============ -->
+<section id="view-invite" class="view">
+  <div class="subhead"><button class="back" onclick="go('view-home')">‹</button><h1>拍照记账</h1></div>
+  <div class="tabs">
+    <button class="tabbtn active" id="tabBook" onclick="switchTab('book')">红本本记账</button>
+    <button class="tabbtn" id="tabInvite" onclick="switchTab('invite')">识请帖</button>
+  </div>
+  <div id="paneBook">
+    <div class="card">
+      <p class="muted" style="margin-bottom:10px">办事那天，门口先生记的红本本，拍下来，一页变一叠账。喵~</p>
+      <input type="file" id="bookFile" accept="image/*" capture="environment" style="display:none" onchange="bookPicked(this)">
+      <div style="border:1.5px dashed var(--line);border-radius:14px;padding:22px;text-align:center;cursor:pointer" onclick="document.getElementById('bookFile').click()">
+        <div style="font-size:26px">📕</div>
+        <p style="font-size:13px;color:var(--ink-2);margin-top:6px">拍一页礼金簿（或选图片）</p>
+      </div>
+      <img id="bookPreview" style="display:none;width:100%;border-radius:12px;margin:10px 0">
+      <label>或把礼金簿内容粘贴进来（每行：名字 金额）</label>
+      <textarea id="bookText" rows="5" placeholder="张三 800&#10;李四 600&#10;王五 1000"></textarea>
+      <label>这是哪场事的收礼</label>
+      <div style="display:flex;gap:8px">
+        <select id="bkType" style="flex:1"><option>婚礼</option><option>满月</option><option>寿宴</option><option>升学宴</option><option>乔迁</option><option>白事</option></select>
+        <input type="date" id="bkDate" style="flex:1">
+      </div>
+      <button class="btn" onclick="recognizeBook(false)">识 别</button>
+    </div>
+    <div id="bookOut"></div>
+  </div>
+  <div id="paneInvite" style="display:none">
+    <div class="card">
+      <p class="muted" style="margin-bottom:10px">拍张请柬照，账房猫帮你把日子变成提醒。喵~</p>
+      <input type="file" id="inviteFile" accept="image/*" capture="environment" style="display:none" onchange="invitePicked(this)">
+      <div style="border:1.5px dashed var(--line);border-radius:14px;padding:22px;text-align:center;cursor:pointer" onclick="document.getElementById('inviteFile').click()">
+        <div style="font-size:26px">📷</div>
+        <p style="font-size:13px;color:var(--ink-2);margin-top:6px">点击拍照或选择请柬图片</p>
+      </div>
+      <img id="invitePreview" style="display:none;width:100%;border-radius:12px;margin:10px 0">
+      <label>或者：把请柬文字粘贴进来</label>
+      <textarea id="inviteText" rows="4" placeholder="例：谨定于2026年11月8日在金桂大酒店二楼宴会厅，为小女张晓雨举行婚礼，恭请光临"></textarea>
+      <button class="btn" onclick="recognizeInvite(false)">识 别</button>
+    </div>
+    <div id="inviteOut"></div>
+  </div>
+</section>
+
+<!-- ============ AI 换物 ============ -->
+<section id="view-exchange" class="view">
+  <div class="subhead"><button class="back" onclick="go('view-home')">‹</button><h1>AI 换物</h1></div>
+  <div class="seg">
+    <button class="on" id="exTab1" onclick="exTab(1)">回礼换品类</button>
+    <button id="exTab2" onclick="exTab(2)">送礼参谋</button>
+  </div>
+
+  <div id="exPane1">
+    <div class="card">
+      <p class="muted" style="margin-bottom:10px">收到什么礼，就回等价但不同品类的心意。喵~</p>
+      <label>收到的礼品品类</label>
+      <select id="rxCat"></select>
+      <label>对方随 / 送的价值（元）</label>
+      <input type="number" id="rxValue" placeholder="300" oninput="doExchange()">
+      <button class="btn ghost small" style="margin-bottom:12px" onclick="pickFromHistory()">从往来记录里选一收</button>
+      <div id="exchangeOut"></div>
+    </div>
+  </div>
+
+  <div id="exPane2" style="display:none">
+    <div class="card">
+      <label>送给谁</label>
+      <select id="gTo">
+        <option>长辈亲戚</option><option>朋友</option><option>同事</option><option>领导</option><option>邻居</option>
+      </select>
+      <label>场合</label>
+      <select id="gOcc">
+        <option>婚礼</option><option>满月/百日</option><option>乔迁</option><option>探病</option><option>节令送礼</option><option>日常答谢</option>
+      </select>
+      <label>预算（元）</label>
+      <input type="number" id="gBudget" placeholder="500" oninput="doGiftIdea()">
+      <div id="giftIdeaOut"></div>
+    </div>
+  </div>
+  <p class="muted" style="text-align:center">演示模式：本地知识库出推荐 · 接入 AI 后更聪明（设置里可填）</p>
+</section>
+
+<!-- ============ 节日提醒 ============ -->
+<section id="view-reminders" class="view">
+  <div class="subhead"><button class="back" onclick="go('view-home')">‹</button><h1>节日提醒</h1></div>
+  <p class="muted" style="margin-bottom:10px">三节两寿：春节 · 端午 · 中秋 + 对方父母生日</p>
+  <div class="list" id="reminderList"></div>
+  <button class="addbtn" onclick="editReminder()">＋ 添加提醒</button>
+</section>
+
+<!-- ============ 猫窝 ============ -->
+<section id="view-cat" class="view">
+  <div class="subhead"><button class="back" onclick="go('view-home')">‹</button><h1>猫窝</h1></div>
+  <div class="card cat-stage-card" style="text-align:center">
+    <span class="cat-bubble" id="catBubble">喵~</span>
+    <div id="catStage" onclick="petCat()">
+      <svg id="bigCat" viewBox="0 0 220 175" width="240" height="190">
+        <ellipse cx="110" cy="165" rx="64" ry="7" fill="#EAE7DE"/>
+        <g id="catTail" style="transform-origin:158px 128px">
+          <path d="M158 128 Q198 124 194 92 Q192 74 176 72" fill="none" stroke="#E8B04B" stroke-width="13" stroke-linecap="round"/>
+          <path d="M176 72 Q168 73 165 80" fill="none" stroke="#F5CE7A" stroke-width="13" stroke-linecap="round"/>
+        </g>
+        <ellipse id="catBody" cx="108" cy="132" rx="50" ry="30" fill="#F5CE7A" stroke="#8A6A1F" stroke-width="3"/>
+        <ellipse cx="108" cy="142" rx="27" ry="16" fill="#FBEBBA"/>
+        <ellipse cx="86" cy="158" rx="12" ry="7" fill="#F5CE7A" stroke="#8A6A1F" stroke-width="2.5"/>
+        <ellipse cx="130" cy="158" rx="12" ry="7" fill="#F5CE7A" stroke="#8A6A1F" stroke-width="2.5"/>
+        <path d="M126 108 Q134 112 132 120 M140 112 Q147 116 145 124" stroke="#E8B04B" stroke-width="4" fill="none" stroke-linecap="round"/>
+        <g id="catHead">
+          <path id="earL" d="M80 48 L74 18 L98 34 Z" fill="#F5CE7A" stroke="#8A6A1F" stroke-width="3" stroke-linejoin="round"/>
+          <path id="earR" d="M136 48 L142 18 L118 34 Z" fill="#F5CE7A" stroke="#8A6A1F" stroke-width="3" stroke-linejoin="round"/>
+          <circle cx="108" cy="70" r="37" fill="#F5CE7A" stroke="#8A6A1F" stroke-width="3"/>
+          <g id="eyeOpen"><circle cx="95" cy="66" r="4.2" fill="#4A3A10"/><circle cx="121" cy="66" r="4.2" fill="#4A3A10"/></g>
+          <g id="eyeSad" style="display:none"><path d="M90 68 Q95 63 100 68 M116 68 Q121 63 126 68" stroke="#4A3A10" stroke-width="3" fill="none" stroke-linecap="round"/></g>
+          <path d="M104 74 L112 74 L108 79 Z" fill="#D97B4A"/>
+          <path d="M104 82 Q108 86 112 82" fill="none" stroke="#4A3A10" stroke-width="2.6" stroke-linecap="round"/>
+          <path d="M86 76 L68 72 M86 82 L69 84 M130 76 L148 72 M130 82 L147 84" stroke="#8A6A1F" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="88" cy="78" r="5" fill="#F0B7A6" opacity=".7"/>
+          <circle cx="128" cy="78" r="5" fill="#F0B7A6" opacity=".7"/>
+          <path id="catTear" style="display:none" d="M124 70 q7 9 0 14 q-7 -5 0 -14" fill="#7FB8E8"/>
+        </g>
+      </svg>
+    </div>
+    <p id="catStageName" style="font-weight:800;font-size:16px;margin-top:2px">小奶猫</p>
+    <p class="muted" style="font-size:12px">点猫 = 摸头呼噜 · 喂猫 = 花 3 颗猫粮</p>
+  </div>
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:10px">
+      <h3 style="margin:0">🐾 猫粮仓</h3>
+      <span style="font-size:26px;font-weight:800" id="catFoodCount">0</span>
+      <span class="muted" style="font-size:12px">颗</span>
+      <button class="btn small" id="feedBtn" style="margin-left:auto" onclick="feedCat()">喂猫（-3 颗）</button>
+    </div>
+    <div style="height:12px;background:var(--line);border-radius:999px;overflow:hidden;margin-top:14px">
+      <div id="catGrowBar" style="height:100%;width:0%;background:var(--accent);border-radius:999px;transition:width .5s ease"></div>
+    </div>
+    <p class="muted" id="catGrowText" style="font-size:12px;margin-top:6px">已喂 0 次</p>
+  </div>
+  <div class="card">
+    <h3>怎么攒猫粮</h3>
+    <div class="suggest-item"><span class="pill">记账</span><span>记一笔 +1（每天记账最多攒 3 颗）</span></div>
+    <div class="suggest-item"><span class="pill">识别</span><span>红本本 / 请柬识别入库 +2</span></div>
+    <div class="suggest-item"><span class="pill">完成</span><span>完成一条节日提醒 +2</span></div>
+    <div class="suggest-item"><span class="pill">坚持</span><span>连续 3 天都有记账，第 3 天额外 +3</span></div>
+    <p class="muted" style="font-size:12px;margin-top:8px">每 10 颗猫粮 = 投喂 1 只真实流浪猫（正式版与救助站联动）</p>
+  </div>
+</section>
+
+<!-- ============ 统计报表 ============ -->
+<section id="view-stats" class="view">
+  <div class="subhead"><button class="back" onclick="go('view-home')">‹</button><h1>统计报表</h1></div>
+  <div class="card"><h3>年度收支出入（近5年）</h3><div id="chartYear"></div></div>
+  <div class="card"><h3>事件类型分布</h3><div id="chartType"></div></div>
+  <div class="card"><h3>关系圈层分布</h3><div id="chartCircle"></div></div>
+  <div class="card"><h3>户净差额排行</h3><div id="chartRank"></div><p class="muted" style="margin-top:8px">正数 = 这户多随了我们；负数 = 我们多随了这户</p></div>
+  <button class="btn ghost" onclick="openShare()">生成脱敏分享卡片</button>
+</section>
+
+<!-- ============ 分享 ============ -->
+<section id="view-share" class="view">
+  <div class="subhead"><button class="back" onclick="go('view-home')">‹</button><h1>脱敏分享卡片</h1></div>
+  <p class="muted" style="margin-bottom:10px">隐去所有姓名与明细，只保留整体统计，可以放心发小红书。喵~</p>
+  <div class="share-canvas-wrap"><canvas id="shareCanvas" width="750" height="980"></canvas></div>
+  <button class="btn" style="margin-top:12px" onclick="downloadShare()">保存图片</button>
+</section>
+
+<!-- ============ 我的 ============ -->
+<section id="view-me" class="view">
+  <div class="subhead"><button class="back" onclick="go('view-home')">‹</button><h1>我的</h1></div>
+  <div class="card" style="display:flex;align-items:center;gap:14px">
+    <svg style="width:56px;height:56px"><use href="#cat"/></svg>
+    <div><b style="font-size:16px">账房猫</b><div class="muted" id="meFeed">陪我记账 · 已攒 0 颗猫粮</div></div>
+  </div>
+  <div class="list">
+    <div class="row" onclick="openShare()"><span class="tag n">享</span><div class="info"><p>分享</p><span>生成脱敏统计卡片</span></div></div>
+    <div class="row" onclick="go('view-manual')"><span class="tag n">册</span><div class="info"><p>操作手册</p><span>三分钟学会记账</span></div></div>
+    <div class="row" onclick="go('view-about')"><span class="tag n">猫</span><div class="info"><p>关于我们</p><span>账号 · 团队 · 流浪猫计划</span></div></div>
+    <div class="row" onclick="go('view-settings')"><span class="tag n">设</span><div class="info"><p>设置</p><span>账本 · 成员 · AI · 数据</span></div></div>
+  </div>
+</section>
+
+<!-- ============ 操作手册 ============ -->
+<section id="view-manual" class="view">
+  <div class="subhead"><button class="back" onclick="go('view-me')">‹</button><h1>操作手册</h1></div>
+  <div class="card">
+    <h3>1️⃣ 先建户，再记账</h3>
+    <p style="font-size:13.5px;line-height:1.7">人情账按"户"记，不是按天记。在【户档案】里把张三家、李四家建好，以后每一笔随礼都挂在这户名下，回礼时翻这一户的往来就够了。</p>
+  </div>
+  <div class="card">
+    <h3>2️⃣ 记一笔的讲究</h3>
+    <p style="font-size:13.5px;line-height:1.7">方向分"我随出 / 我收进"；红白事、压岁钱、三节两寿都有专门的类型；老人生日忌日记得填农历。实物礼品不知道价格就留空，算"心意型不计价"。</p>
+  </div>
+  <div class="card">
+    <h3>3️⃣ 回礼看建议</h3>
+    <p style="font-size:13.5px;line-height:1.7">打开一户的详情页，账房猫会按"上次随了多少 + 隔了几年 + 关系亲疏"给出回礼区间。红事宁多勿少，白事跟着走，压岁钱对孩子对等。</p>
+  </div>
+  <div class="card">
+    <h3>4️⃣ AI 换物</h3>
+    <p style="font-size:13.5px;line-height:1.7">收到茶叶回茶叶太敷衍——AI 帮你推荐等价但不同品类的回礼；要主动送礼时，"送礼参谋"按对象、场合、预算出主意。</p>
+  </div>
+  <div class="card">
+    <h3>5️⃣ 对账房猫说话</h3>
+    <p style="font-size:13.5px;line-height:1.7">点底部黄色大按钮，说"随了张三家婚礼一千块"，它自动拆好字段让你确认。每一笔都会变成猫粮存进「猫窝」——攒够就喂猫，小奶猫会一路长成精神猫、胖橘。</p>
+  </div>
+</section>
+
+<!-- ============ 关于我们 ============ -->
+<section id="view-about" class="view">
+  <div class="subhead"><button class="back" onclick="go('view-me')">‹</button><h1>关于我们</h1></div>
+  <div class="card" style="text-align:center">
+    <svg style="width:80px;height:80px"><use href="#cat"/></svg>
+    <h3 style="margin-top:8px">我家的人情账</h3>
+    <p style="font-size:13px;line-height:1.8;color:var(--ink-2)">情谊记在心里，数目写在纸上。<br>一只想帮每个家庭理清人情往来的账房猫。</p>
+  </div>
+  <div class="card">
+    <h3>🐱 流浪猫救助计划</h3>
+    <p style="font-size:13.5px;line-height:1.7">你每记一笔账，账房猫就攒下一颗猫粮；每 10 颗猫粮，意味着一只流浪猫被投喂一次。我们与流浪猫救助站合作，把虚拟的投喂变成真实的猫粮捐赠。</p>
+  </div>
+  <div class="card">
+    <h3>📕 找到我们</h3>
+    <p style="font-size:13.5px;line-height:1.7">小红书搜索：<b>@账房猫的人情账</b>（占位，开号后替换）<br>记录产品诞生全过程 · 人情往来故事 · 养猫日常</p>
+  </div>
+  <div class="card">
+    <h3>👥 团队</h3>
+    <p style="font-size:13.5px;line-height:1.7">一个爱猫的高中生 + 一只不会记账的猫。（占位，答辩前润色）</p>
+  </div>
+</section>
+
+<!-- ============ 设置 ============ -->
+<section id="view-settings" class="view">
+  <div class="subhead"><button class="back" onclick="go('view-home')">‹</button><h1>设置</h1></div>
+  <div class="card">
+    <h3>账本</h3>
+    <label>账本名称</label>
+    <input type="text" id="setName">
+    <label>家庭成员（经手人）</label>
+    <div id="memberChips" style="margin-bottom:8px"></div>
+    <div class="rowflex">
+      <input type="text" id="newMember" placeholder="添加成员">
+      <button class="btn ghost small" style="flex:none;margin:0" onclick="addMember()">添加</button>
+    </div>
+    <button class="btn small" style="margin-top:10px" onclick="saveSettings()">保存账本设置</button>
+  </div>
+  <div class="card">
+    <h3>AI 设置</h3>
+    <p class="muted" id="aiStatus" style="margin-bottom:8px">● 演示模式（离线知识库）</p>
+    <p class="muted" style="font-size:12px;margin-bottom:8px">填入智谱 API Key（bigmodel.cn 注册生成）即可解锁真 AI：说话记账、AI 换物、拍照识请帖全部变聪明。Key 只保存在本机。</p>
+    <input type="text" id="aiKey" placeholder="粘贴 API Key">
+    <button class="btn ghost small" onclick="saveAiKey()">保存 Key</button>
+  </div>
+  <div class="card">
+    <h3>数据</h3>
+    <div class="rowflex">
+      <button class="btn ghost small" onclick="exportData()">导出 JSON</button>
+      <button class="btn ghost small" onclick="document.getElementById('importFile').click()">导入 JSON</button>
+    </div>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(this)">
+    <button class="btn ghost small" style="margin-top:10px" onclick="resetAll()">清空重来（重建演示数据）</button>
+  </div>
+</section>
+
+</div><!-- /app -->
+
+<!-- 底部栏 -->
+<nav class="tabbar" id="tabbar" style="display:none">
+  <div class="tab active" id="tab-home" onclick="go('view-home')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    首页
+  </div>
+  <button class="ai-btn" onclick="openChat()">
+    <svg class="cat-face"><use href="#cat"/></svg>问账房猫
+  </button>
+  <div class="tab" id="tab-me" onclick="go('view-me')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    我的
+  </div>
+</nav>
+
+<!-- 聊天面板 -->
+<div class="chat-mask" id="chatMask" onclick="closeChat()"></div>
+<div class="chat-panel" id="chatPanel">
+  <div class="chat-head">
+    <svg class="cat-face"><use href="#cat"/></svg>
+    <div><b>账房猫</b><span id="aiModeBadge">演示模式 · 咪~ 说话我帮你记</span></div>
+    <button class="chat-close" onclick="closeChat()">×</button>
+  </div>
+  <div class="chat-msgs" id="chatMsgs"></div>
+  <div class="chat-input">
+    <input type="text" id="chatText" placeholder="例：昨天随了张三家婚礼一千块" onkeydown="if(event.key==='Enter')sendChat()">
+    <button onclick="sendChat()">发送</button>
+  </div>
+</div>
+
+<!-- 通用弹窗 -->
+<div class="modal-mask" id="modalMask">
+  <div class="modal" id="modalBox"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= 常量 ================= */
+const EVENT_META = {
+  '婚礼':{cat:'red'},'订婚':{cat:'red'},'满月':{cat:'red'},'百日':{cat:'red'},
+  '周岁':{cat:'red'},'寿宴':{cat:'red'},'升学宴':{cat:'red'},'谢师宴':{cat:'red'},
+  '乔迁':{cat:'red'},'开业':{cat:'red'},'二胎满月':{cat:'red'},'参军宴':{cat:'red'},
+  '白事':{cat:'white'},
+  '压岁钱':{cat:'festival',rule:'child'},'端午':{cat:'festival'},'中秋':{cat:'festival'},'重阳':{cat:'festival'},
+  '探病':{cat:'daily'},'答谢':{cat:'daily'},'伴手礼':{cat:'daily'},'看望老人':{cat:'daily'}
+};
+const EVENT_SYN = {
+  '婚礼':['结婚','婚宴','娶媳妇','嫁女儿','彩礼'],'订婚':['订婚'],'满月':['满月','做月子'],'百日':['百天','百日'],
+  '寿宴':['过寿','大寿','生日宴'],'升学宴':['考上大学','升学','金榜'],'乔迁':['搬家','乔迁','暖房'],
+  '开业':['开张','开业'],'白事':['去世','走了','丧事','白事','奠仪'],'压岁钱':['压岁','红包'],
+  '中秋':['中秋','月饼'],'端午':['端午','粽子'],'重阳':['重阳'],'探病':['住院','生病','探病'],'答谢':['帮忙后答谢','谢谢人家']
+};
+const GIFT_LIBRARY = [
+  {cat:'茶饮',name:'红茶礼盒',lo:150,hi:400,occ:['节令送礼','日常答谢','长辈亲戚']},
+  {cat:'茶饮',name:'白茶饼礼盒',lo:300,hi:800,occ:['节令送礼','领导']},
+  {cat:'酒水',name:'白酒双瓶装',lo:300,hi:1000,occ:['婚礼','长辈亲戚','节令送礼']},
+  {cat:'酒水',name:'进口红酒',lo:150,hi:500,occ:['朋友','婚宴答谢']},
+  {cat:'滋补',name:'燕窝礼盒',lo:400,hi:1200,occ:['探病','长辈亲戚','满月/百日']},
+  {cat:'滋补',name:'蜂蜜枸杞礼盒',lo:100,hi:300,occ:['探病','长辈亲戚','节令送礼']},
+  {cat:'母婴',name:'婴儿银锁套装',lo:200,hi:800,occ:['满月/百日']},
+  {cat:'母婴',name:'婴儿衣物礼盒',lo:100,hi:300,occ:['满月/百日']},
+  {cat:'家纺',name:'蚕丝被',lo:300,hi:900,occ:['婚礼','乔迁']},
+  {cat:'家纺',name:'四件套礼盒',lo:150,hi:450,occ:['婚礼','乔迁']},
+  {cat:'厨具',name:'保温壶茶具套装',lo:100,hi:350,occ:['乔迁','日常答谢']},
+  {cat:'水果',name:'高端水果篮',lo:80,hi:250,occ:['探病','日常答谢','邻居']},
+  {cat:'零食',name:'坚果大礼盒',lo:80,hi:220,occ:['节令送礼','朋友','邻居']},
+  {cat:'鲜花',name:'康乃馨花束',lo:60,hi:200,occ:['探病','长辈亲戚']},
+  {cat:'文创',name:'紫砂杯套装',lo:150,hi:600,occ:['领导','长辈亲戚','日常答谢']}
+];
+const RELATION_LIST = ['亲戚','朋友','同事','同学','邻居','其他'];
+const FESTIVAL_SEED = [
+  {label:'春节（压岁钱季）',date:'2027-02-06',householdId:null,kind:'festival'},
+  {label:'端午送礼',date:'2027-06-09',householdId:null,kind:'festival'},
+  {label:'中秋送礼',date:'2027-09-15',householdId:null,kind:'festival'}
+];
+
+/* ================= 数据层 ================= */
+const LS_KEY = 'renqing_ledger_v1';
+let DB = null, currentH = null, addDir = 'out', addKind = 'cash', pendingChatTx = null;
+
+function uid(p){ return p + Date.now().toString(36) + Math.random().toString(36).slice(2,5); }
+function save(){ DB.updatedAt = new Date().toISOString(); localStorage.setItem(LS_KEY, JSON.stringify(DB)); }
+function load(){ try { return JSON.parse(localStorage.getItem(LS_KEY)); } catch(e){ return null; } }
+
+function seed(){
+  const h1=uid('h_'), h2=uid('h_'), h3=uid('h_'), h4=uid('h_'), h5=uid('h_');
+  DB = {
+    version:1, updatedAt:new Date().toISOString(),
+    settings:{ bookName:'我家的人情账', members:['我','我爸','我妈'], inflationRate:0.03,
+      aiKey:'', feed:14 },
+    households:[
+      {id:h1,name:'张建国家',members:['张建国','王丽','张小雨'],relation:'亲戚',closeness:1,note:'二舅家',keyDates:[{label:'二舅妈生日',lunar:'八月十五'}],createdAt:Date.now()},
+      {id:h2,name:'李秀兰家',members:['李秀兰','老周'],relation:'邻居',closeness:2,note:'对门老邻居',keyDates:[],createdAt:Date.now()},
+      {id:h3,name:'王强家',members:['王强','刘敏','小宝'],relation:'同事',closeness:3,note:'科室同事',keyDates:[],createdAt:Date.now()},
+      {id:h4,name:'陈志远家',members:['陈志远','赵芳'],relation:'朋友',closeness:2,note:'高中同学',keyDates:[{label:'陈叔生日',lunar:'五月初五'}],createdAt:Date.now()},
+      {id:h5,name:'刘桂芳家',members:['刘桂芳'],relation:'亲戚',closeness:1,note:'大姨',keyDates:[],createdAt:Date.now()}
+    ],
+    transactions:[
+      {id:uid('t_'),householdId:h1,direction:'out',type:'婚礼',date:'2026-10-02',lunar:null,kind:'cash',amount:800,gifts:[],handler:'我',counterpart:'张家女儿',note:'县城饭店',createdAt:Date.now()},
+      {id:uid('t_'),householdId:h2,direction:'in',type:'中秋',date:'2025-09-28',lunar:null,kind:'gift',amount:300,gifts:[{name:'茶叶礼盒',value:300}],handler:'我妈',counterpart:'',note:'',createdAt:Date.now()},
+      {id:uid('t_'),householdId:h3,direction:'out',type:'压岁钱',date:'2026-02-17',lunar:null,kind:'cash',amount:600,gifts:[],handler:'我',counterpart:'小宝',note:'',createdAt:Date.now()},
+      {id:uid('t_'),householdId:h4,direction:'in',type:'婚礼',date:'2024-05-20',lunar:null,kind:'cash',amount:1000,gifts:[],handler:'我爸',counterpart:'',note:'他结婚随给我们家',createdAt:Date.now()},
+      {id:uid('t_'),householdId:h5,direction:'out',type:'看望老人',date:'2026-06-18',lunar:null,kind:'gift',amount:230,gifts:[{name:'蜂蜜枸杞礼盒',value:150},{name:'水果篮',value:80}],handler:'我妈',counterpart:'',note:'',createdAt:Date.now()},
+      {id:uid('t_'),householdId:h1,direction:'out',type:'满月',date:'2023-11-02',lunar:null,kind:'cash',amount:600,gifts:[],handler:'我妈',counterpart:'张家外孙',note:'',createdAt:Date.now()},
+      {id:uid('t_'),householdId:h3,direction:'in',type:'乔迁',date:'2026-01-15',lunar:null,kind:'gift',amount:350,gifts:[{name:'四件套礼盒',value:350}],handler:'我',counterpart:'',note:'新居入伙',createdAt:Date.now()}
+    ],
+    reminders:[
+      {id:uid('r_'),householdId:h1,dueDate:'2027-02-05',title:'给张家拜年（压岁钱备好）',kind:'festival',status:'open'},
+      {id:uid('r_'),householdId:h4,dueDate:'2026-10-31',title:'陈叔生日（农历五月初五补礼）',kind:'keydate',status:'open'}
+    ]
+  };
+  FESTIVAL_SEED.forEach(f => DB.reminders.push({id:uid('r_'),householdId:null,dueDate:f.date,title:f.label,kind:'festival',status:'open'}));
+  save();
+}
+
+/* ================= 路由 ================= */
+const HOME_VIEWS = ['view-home','view-me'];
+function go(id){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.getElementById('tab-home').classList.toggle('active', id==='view-home');
+  document.getElementById('tab-me').classList.toggle('active', id==='view-me');
+  window.scrollTo(0,0);
+}
+
+/* ================= 首页渲染 ================= */
+const fmt = n => '¥' + Math.round(n).toLocaleString('zh-CN');
+function sums(){
+  let out=0, inn=0;
+  DB.transactions.forEach(t => {
+    const v = t.kind==='gift' ? (t.amount||0) : (t.amount||0);
+    t.direction==='out' ? out+=v : inn+=v;
+  });
+  return {out, inn, net: inn-out};
+}
+function renderHome(){
+  document.getElementById('homeBookName').textContent = DB.settings.bookName;
+  const s = sums();
+  document.getElementById('ovOut').textContent = fmt(s.out);
+  document.getElementById('ovIn').textContent = fmt(s.inn);
+  document.getElementById('ovNet').textContent = fmt(s.net);
+  renderFeed();
+  const recent = [...DB.transactions].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,4);
+  document.getElementById('recentList').innerHTML = recent.map(t=>{
+    const h = DB.households.find(x=>x.id===t.householdId);
+    const giftTxt = t.kind==='gift' && t.gifts.length ? ' · '+t.gifts.map(g=>g.name).join('、') : '';
+    return `<div class="row" onclick="openH('${t.householdId}')">
+      <span class="tag ${t.direction}">${t.direction==='out'?'出':'收'}</span>
+      <div class="info"><p>${h?h.name:'未知户'} · ${t.type}</p><span>${t.date} · ${t.handler}${giftTxt}</span></div>
+      <b class="amount ${t.direction}">${t.direction==='out'?'-':'+'}${t.kind==='gift'&&t.amount===0?'心意':fmt(t.amount)}</b></div>`;
+  }).join('') || '<div class="empty">还没有往来，喵~ 点上面「记一笔」</div>';
+}
+function renderFeed(){
+  document.getElementById('feedSub').textContent = `猫粮仓 ${DB.cat.food} 颗 · 点进喂猫`;
+  document.getElementById('meFeed').textContent = `陪我记账 · 已攒 ${DB.settings.feed||0} 颗猫粮`;
+}
+
+/* ================= 记一笔 ================= */
+function openAdd(){
+  const sel = document.getElementById('addHousehold');
+  sel.innerHTML = DB.households.map(h=>`<option value="${h.id}">${h.name}</option>`).join('');
+  document.getElementById('addType').innerHTML = Object.keys(EVENT_META).map(k=>`<option>${k}</option>`).join('');
+  document.getElementById('addHandler').innerHTML = DB.settings.members.map(m=>`<option>${m}</option>`).join('');
+  document.getElementById('addDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('addAmount').value='';
+  document.getElementById('addNote').value=''; document.getElementById('addCounterpart').value='';
+  document.getElementById('addLunar').value='';
+  go('view-add');
+}
+function setDir(v){ addDir=v; [...document.querySelectorAll('#addDirSeg button')].forEach(b=>b.classList.toggle('on',b.dataset.v===v)); }
+function setKind(v){ addKind=v; [...document.querySelectorAll('#addKindSeg button')].forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  document.getElementById('cashBox').style.display = v==='cash'?'':'none';
+  document.getElementById('giftBox').style.display = v==='gift'?'':'none'; }
+function saveTx(){
+  const hid = document.getElementById('addHousehold').value;
+  const type = document.getElementById('addType').value;
+  const date = document.getElementById('addDate').value;
+  if(!hid || !date){ toast('喵？把户和日期填上'); return; }
+  const t = { id:uid('t_'), householdId:hid, direction:addDir, type, date,
+    lunar:document.getElementById('addLunar').value||null, kind:addKind,
+    amount:0, gifts:[], handler:document.getElementById('addHandler').value,
+    counterpart:document.getElementById('addCounterpart').value, note:document.getElementById('addNote').value,
+    createdAt:Date.now() };
+  if(addKind==='cash'){
+    t.amount = parseFloat(document.getElementById('addAmount').value)||0;
+    if(!t.amount){ toast('金额还没填喵'); return; }
+  } else {
+    const name = document.getElementById('giftName').value.trim();
+    if(!name){ toast('礼品名称还没填喵'); return; }
+    const val = document.getElementById('giftValue').value;
+    const g = {name, value: val===''?null:parseFloat(val)};
+    t.gifts=[g]; t.amount = g.value||0;
+  }
+  DB.transactions.push(t);
+  const foodMsg = txFood();
+  save(); renderHome();
+  const h = DB.households.find(x=>x.id===hid);
+  toast(foodMsg);
+  go('view-home');
+}
+
+/* ================= 户档案 ================= */
+function renderHouseholds(){
+  document.getElementById('householdList').innerHTML = DB.households.map(h=>{
+    const {out,inn} = hSums(h.id);
+    return `<div class="row" onclick="openH('${h.id}')">
+      <span class="tag n">${h.name[0]}</span>
+      <div class="info"><p>${h.name}</p><span>${h.relation} · 亲疏${h.closeness} · 往来${DB.transactions.filter(t=>t.householdId===h.id).length}笔</span></div>
+      <b class="amount ${inn-out>=0?'in':'out'}">${fmt(inn-out)}</b></div>`;
+  }).join('') || '<div class="empty">还没有户，点下面新建</div>';
+}
+function hSums(hid){
+  let out=0,inn=0;
+  DB.transactions.filter(t=>t.householdId===hid).forEach(t=>{ t.direction==='out'?out+=(t.amount||0):inn+=(t.amount||0); });
+  return {out,inn};
+}
+function openH(hid){
+  currentH = hid;
+  const h = DB.households.find(x=>x.id===hid); if(!h) return;
+  document.getElementById('hdName').textContent = h.name;
+  renderSuggest(h); renderTimeline(h); renderHdTable(h); go('view-hdetail');
+}
+function renderSuggest(h){
+  const box = document.getElementById('hdSuggest');
+  const myOut = DB.transactions.filter(t=>t.householdId===h.id && t.direction==='out' && EVENT_META[t.type] && EVENT_META[t.type].cat==='red')
+    .sort((a,b)=>b.date.localeCompare(a.date));
+  const theirIn = DB.transactions.filter(t=>t.householdId===h.id && t.direction==='in' && EVENT_META[t.type] && EVENT_META[t.type].cat==='red')
+    .sort((a,b)=>b.date.localeCompare(a.date));
+  let html = `<h3>🎁 回礼建议</h3>`;
+  if(!myOut.length && !theirIn.length){
+    html += `<p class="muted">这户还没有红事往来。首次随礼建议参考当地行情与关系亲疏。</p>`;
+  } else if(myOut.length){
+    const last = myOut[0]; const yrs = new Date().getFullYear() - parseInt(last.date.slice(0,4));
+    const grown = Math.round(last.amount * (1 + DB.settings.inflationRate*Math.max(yrs,0)));
+    html += `<p style="font-size:13.5px;line-height:1.7">上次红事（${last.type}）随了 <b>${fmt(last.amount)}</b>，已隔 <b>${yrs}</b> 年。<br>
+      建议区间：<b style="color:var(--accent-ink);font-size:16px">${fmt(grown)} ~ ${fmt(Math.round(grown*1.15/10)*10)}</b><br>
+      <span class="muted">规则：红事≥上次，随行情上浮${Math.round(DB.settings.inflationRate*100)}%/年；宁多勿少。</span></p>`;
+  } else {
+    const last = theirIn[0];
+    html += `<p style="font-size:13.5px;line-height:1.7">对方最近红事（${last.type}）随了我们 <b>${fmt(last.amount)}</b>。<br>
+      建议回礼：<b style="color:var(--accent-ink);font-size:16px">${fmt(last.amount)} ~ ${fmt(Math.round(last.amount*1.15/10)*10)}</b><br>
+      <span class="muted">规则：至少等额，宁多勿少。</span></p>`;
+  }
+  const lastIn = DB.transactions.filter(t=>t.householdId===h.id && t.direction==='in' && t.kind==='gift').sort((a,b)=>b.date.localeCompare(a.date))[0];
+  if(lastIn){
+    const g = lastIn.gifts[0];
+    html += `<div style="margin-top:10px;display:flex;align-items:center;gap:8px">
+      <span class="muted">上次收他家：${g.name}${g.value?(' '+fmt(g.value)):'（心意）'}</span>
+      <button class="btn small" onclick="prefillExchange('${g.name.replace(/'/g,'')}',${g.value||200})">AI 换物回礼</button></div>`;
+  }
+  box.innerHTML = html;
+}
+function renderTimeline(h){
+  const ts = DB.transactions.filter(t=>t.householdId===h.id).sort((a,b)=>b.date.localeCompare(a.date));
+  document.getElementById('hdTimeline').innerHTML = ts.map(t=>{
+    const isOut = t.direction==='out';
+    const giftTxt = t.kind==='gift' ? t.gifts.map(g=>g.name+(g.value?(' '+fmt(g.value)):'（心意）')).join('、') : '现金';
+    return `<div class="row" onclick="delTx('${t.id}')">
+      <span class="tag ${t.direction}">${isOut?'出':'收'}</span>
+      <div class="info"><p>${t.type}${t.counterpart?' · '+t.counterpart:''}</p><span>${t.date} · ${giftTxt} · ${t.handler}${t.note?' · '+t.note:''}</span></div>
+      <b class="amount ${t.direction}">${isOut?'-':'+'}${fmt(t.amount)}</b></div>`;
+  }).join('') || '<div class="empty">还没有往来</div>';
+}
+let hdAsTable = false;
+function hdToggleView(){
+  hdAsTable = !hdAsTable;
+  document.getElementById('hdTimeline').style.display = hdAsTable?'none':'block';
+  document.getElementById('hdTableWrap').style.display = hdAsTable?'block':'none';
+  document.getElementById('hdToggle').textContent = hdAsTable?'时间线视图':'表格视图';
+}
+function renderHdTable(h){
+  const ts = DB.transactions.filter(t=>t.householdId===h.id).sort((a,b)=>b.date.localeCompare(a.date));
+  const wrap = document.getElementById('hdTableWrap');
+  if(!ts.length){ wrap.innerHTML = '<div class="empty">还没有往来</div>'; return; }
+  wrap.innerHTML = `<table class="sheet">
+    <thead><tr><th>日期</th><th>事件</th><th>方向</th><th>金额</th><th>经手人</th><th>内容/备注</th></tr></thead>
+    <tbody>${ts.map(t=>{
+      const isOut = t.direction==='out';
+      const item = t.kind==='gift' ? t.gifts.map(g=>g.name+(g.value?('('+fmt(g.value)+')'):'(心意)')).join('、') : '现金';
+      return `<tr><td>${t.date}</td><td>${t.type}${t.counterpart?'·'+t.counterpart:''}</td>
+        <td>${isOut?'随出':'收进'}</td>
+        <td class="amount ${t.direction}">${isOut?'-':'+'}${fmt(t.amount)}</td>
+        <td>${t.handler||''}</td><td>${item}${t.note?' · '+t.note:''}</td></tr>`;
+    }).join('')}</tbody></table>`;
+}
+function exportHouseholdCsv(){
+  const h = DB.households.find(x=>x.id===currentH); if(!h) return;
+  const ts = DB.transactions.filter(t=>t.householdId===h.id).sort((a,b)=>b.date.localeCompare(a.date));
+  if(!ts.length){ toast('这户还没有往来喵'); return; }
+  const esc = s=>'"'+String(s).replace(/"/g,'""')+'"';
+  const lines = [['日期','事件','对方','方向','金额','经手人','内容/备注'].join(',')];
+  ts.forEach(t=>{
+    const item = t.kind==='gift' ? t.gifts.map(g=>g.name+(g.value?('('+g.value+'元)'):'(心意)')).join('、') : '现金';
+    lines.push([t.date,t.type,t.counterpart||'',t.direction==='out'?'随出':'收进',t.amount,t.handler||'',item+(t.note?' '+t.note:'')].map(esc).join(','));
+  });
+  const blob = new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = h.name+'-人情明细.csv';
+  a.click();
+  toast('表格导出啦，双击用 Excel 打开就是表');
+}
+function delTx(id){
+  openModal(`<h3>删除这笔往来？</h3><p class="muted" style="margin-bottom:14px">删除后不可恢复，喵。</p>
+    <div class="rowflex"><button class="btn ghost" onclick="closeModal()">手滑了</button>
+    <button class="btn" style="background:var(--warm)" onclick="doDelTx('${id}')">删除</button></div>`);
+}
+function doDelTx(id){
+  DB.transactions = DB.transactions.filter(t=>t.id!==id); save();
+  closeModal(); renderHome(); openH(currentH); toast('删掉了，猫粮不退喵');
+}
+function editHousehold(hid){
+  const h = hid ? DB.households.find(x=>x.id===hid) : null;
+  openModal(`<h3>${h?'编辑户':'新建户'}</h3>
+    <label>户名 *</label><input id="mName" value="${h?h.name:''}" placeholder="如：张建国家">
+    <label>关系</label><select id="mRel">${RELATION_LIST.map(r=>`<option ${h&&h.relation===r?'selected':''}>${r}</option>`).join('')}</select>
+    <label>亲疏（1最亲）</label><select id="mClose">${[1,2,3].map(n=>`<option ${h&&h.closeness===n?'selected':''}>${n}</option>`).join('')}</select>
+    <label>对方家庭成员（逗号分隔）</label><input id="mMembers" value="${h?h.members.join(','):''}" placeholder="张建国,王丽">
+    <label>备注</label><input id="mNote" value="${h?h.note:''}">
+    <div class="rowflex" style="margin-top:10px"><button class="btn ghost" onclick="closeModal()">取消</button>
+    <button class="btn" onclick="saveHousehold('${h?h.id:''}')">保存</button></div>`);
+}
+function saveHousehold(hid){
+  const name = document.getElementById('mName').value.trim();
+  if(!name){ toast('户名要填喵'); return; }
+  const data = { name, relation:document.getElementById('mRel').value,
+    closeness:parseInt(document.getElementById('mClose').value),
+    members:document.getElementById('mMembers').value.split(/[,,]/).map(s=>s.trim()).filter(Boolean),
+    note:document.getElementById('mNote').value };
+  if(hid){ Object.assign(DB.households.find(x=>x.id===hid), data); }
+  else { DB.households.push({id:uid('h_'),keyDates:[],createdAt:Date.now(),...data}); }
+  save(); closeModal(); renderHouseholds(); renderHome(); toast('喵~ 户档案更新啦');
+}
+function quickAddHousehold(){
+  openModal(`<h3>新建一户</h3><label>户名 *</label><input id="mName" placeholder="如：张建国家">
+    <label>关系</label><select id="mRel">${RELATION_LIST.map(r=>`<option>${r}</option>`).join('')}</select>
+    <div class="rowflex" style="margin-top:10px"><button class="btn ghost" onclick="closeModal()">取消</button>
+    <button class="btn" onclick="doQuickAdd()">建好</button></div>`);
+}
+function doQuickAdd(){
+  const name = document.getElementById('mName').value.trim();
+  if(!name){ toast('户名要填喵'); return; }
+  const h = {id:uid('h_'),name,relation:document.getElementById('mRel').value,closeness:2,members:[],note:'',keyDates:[],createdAt:Date.now()};
+  DB.households.push(h); save(); closeModal();
+  const sel=document.getElementById('addHousehold');
+  sel.innerHTML = DB.households.map(x=>`<option value="${x.id}" ${x.id===h.id?'selected':''}>${x.name}</option>`).join('');
+  toast('建好了，已帮你选上');
+}
+
+/* ================= 拍照识请帖 ================= */
+function openInvite(){
+  ['inviteOut','bookOut'].forEach(id=>document.getElementById(id).innerHTML='');
+  ['inviteText','bookText'].forEach(id=>document.getElementById(id).value='');
+  ['invitePreview','bookPreview'].forEach(id=>document.getElementById(id).style.display='none');
+  document.getElementById('bkDate').value=new Date().toISOString().slice(0,10);
+  switchTab('book');
+  go('view-invite');
+}
+function switchTab(t){
+  document.getElementById('tabBook').classList.toggle('active',t==='book');
+  document.getElementById('tabInvite').classList.toggle('active',t==='invite');
+  document.getElementById('paneBook').style.display = t==='book'?'block':'none';
+  document.getElementById('paneInvite').style.display = t==='invite'?'block':'none';
+}
+function fileToDataUrl(f, cb){ const r=new FileReader(); r.onload=()=>cb(r.result); r.readAsDataURL(f); }
+function bookPicked(inp){
+  const f = inp.files[0]; if(!f) return;
+  const img = document.getElementById('bookPreview');
+  img.src = URL.createObjectURL(f); img.style.display='block';
+  fileToDataUrl(f, url => recognizeBook(true, url));
+}
+function parseBookLines(t){
+  const rows=[];
+  t.split(/\n+/).forEach(line=>{
+    const m = line.trim().match(/^([\u4e00-\u9fa5A-Za-z·]{2,4})[\s:：,，、]+[¥￥]?\s*(\d+(?:\.\d+)?)\s*元?\s*$/);
+    if(m) rows.push({name:m[1], amount:parseFloat(m[2])});
+  });
+  return rows;
+}
+async function recognizeBook(fromFile, dataUrl){
+  const text = document.getElementById('bookText').value.trim();
+  const out = document.getElementById('bookOut');
+  if(!text && !fromFile){ toast('先拍一页或粘贴几行喵'); return; }
+  out.innerHTML = thinkingCard('账房猫正在翻红本本……');
+  if(fromFile && !text && aiReady() && dataUrl){
+    try{
+      const raw = await glmCall([{role:'user',content:[
+        {type:'image_url',image_url:{url:dataUrl}},
+        {type:'text',text:'这是礼金簿（红本本）的一页。把每一行"名字 金额"提取出来，输出JSON数组：[{"name":"张三","amount":800}]。手写潦草也尽力辨认，amount是数字。只输出JSON数组。'}
+      ]}], 'glm-4v-flash');
+      const rows = JSON.parse(raw.match(/\[[\s\S]*\]/)[0]);
+      if(rows.length){
+        out.innerHTML = '<p class="muted" style="margin-bottom:8px">真AI识别完成 · 勾选核对后再入账</p>' + bookRowsCard(rows);
+        return;
+      }
+    }catch(e){ toast('AI读图没成功（'+e.message+'），先按示例填'); }
+  }
+  setTimeout(()=>{
+    let rows, note='';
+    if(fromFile && !text){
+      rows = [{name:'张大伯',amount:1000},{name:'李婶一家',amount:600},{name:'王叔叔',amount:800},{name:'赵阿姨',amount:600},{name:'钱伯',amount:2000},{name:'孙姑妈',amount:1200}];
+      note = '<p class="muted" style="margin-bottom:8px">演示模式：填入智谱 API Key 后，账房猫会真读你拍的照片。先按示例填好。</p>';
+    } else {
+      rows = parseBookLines(text);
+      if(!rows.length){ out.innerHTML = '<div class="card"><p class="muted">没认出几行"名字 金额"，喵……看看格式对不对。</p></div>'; return; }
+    }
+    out.innerHTML = note + bookRowsCard(rows);
+  }, 900);
+}
+function bookRowsCard(rows){
+  const body = rows.map((r,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <input type="checkbox" checked id="bkCk${i}" style="width:18px;height:18px">
+      <input type="text" id="bkNm${i}" value="${r.name}" style="flex:1;margin-bottom:0">
+      <input type="number" id="bkAmt${i}" value="${r.amount}" style="width:90px;margin-bottom:0">
+    </div>`).join('');
+  return `<div class="card"><h3>🐱 识别到 ${rows.length} 笔（勾选后入库）</h3>${body}
+    <button class="btn" onclick="saveBook(${rows.length})">全部入账</button></div>`;
+}
+function saveBook(n){
+  const type = document.getElementById('bkType').value;
+  const date = document.getElementById('bkDate').value || new Date().toISOString().slice(0,10);
+  let saved=0, total=0;
+  for(let i=0;i<n;i++){
+    if(!document.getElementById('bkCk'+i).checked) continue;
+    const name = document.getElementById('bkNm'+i).value.trim(); if(!name) continue;
+    const amount = parseFloat(document.getElementById('bkAmt'+i).value)||0;
+    let hh = DB.households.find(h=>h.name===name || h.name===name+'家' || (h.members||[]).includes(name));
+    if(!hh){
+      hh = {id:uid('h_'), name:(name.endsWith('家')?name:name+'家'), members:[name], relation:'其他', closeness:2, note:'红本本识别入库', keyDates:[], createdAt:new Date().toISOString()};
+      DB.households.push(hh);
+    }
+    DB.transactions.push({id:uid('t_'), householdId:hh.id, direction:'in', type, date, lunar:null, kind:'cash', amount, gifts:[], handler:'我', counterpart:'', note:'红本本拍照录入', createdAt:new Date().toISOString()});
+    saved++; total+=amount;
+  }
+  const foodMsg = `喵！${saved} 笔已入账，共 ${fmt(total)} · 猫粮+${addFood(2)} 🐾`;
+  save();
+  toast(foodMsg);
+  document.getElementById('bookOut').innerHTML='';
+}
+function invitePicked(inp){
+  const f = inp.files[0]; if(!f) return;
+  const img = document.getElementById('invitePreview');
+  img.src = URL.createObjectURL(f); img.style.display='block';
+  fileToDataUrl(f, url => recognizeInvite(true, url));
+}
+async function recognizeInvite(fromFile, dataUrl){
+  const text = document.getElementById('inviteText').value.trim();
+  const out = document.getElementById('inviteOut');
+  if(!text && !fromFile){ toast('先拍照或粘贴文字喵'); return; }
+  out.innerHTML = thinkingCard('账房猫正在眯眼看请柬……');
+  if(fromFile && !text && aiReady() && dataUrl){
+    try{
+      const raw = await glmCall([{role:'user',content:[
+        {type:'image_url',image_url:{url:dataUrl}},
+        {type:'text',text:'这是一张请柬照片。提取信息输出JSON对象：{"type":"事件类型","date":"YYYY-MM-DD","host":"主人家姓名","venue":"酒店地点"}。type只能是：婚礼,订婚,满月,百日,寿宴,升学宴,乔迁,开业。日期看不清或只有农历就填""。只输出JSON对象。'}
+      ]}], 'glm-4v-flash');
+      const d = JSON.parse(raw.match(/\{[\s\S]*\}/)[0]);
+      out.innerHTML = '<p class="muted" style="margin-bottom:8px">真AI识别完成 · 可修改</p>' + confirmCard(d);
+      return;
+    }catch(e){ toast('AI读图没成功（'+e.message+'），先按示例填'); }
+  }
+  setTimeout(()=>{
+    let d, note='';
+    if(fromFile && !text){
+      d = {type:'婚礼',date:'2026-11-08',host:'张晓雨',venue:'金桂大酒店'};
+      note = '<p class="muted" style="margin-bottom:8px">演示模式：填入智谱 API Key 后，账房猫会真读你拍的请柬。先按示例填好。</p>';
+    } else {
+      d = parseInviteText(text);
+    }
+    out.innerHTML = note + confirmCard(d);
+  }, 900);
+}
+function parseInviteText(t){
+  const dm = t.match(/(\d{4})\s*[年.\-/]\s*(\d{1,2})\s*[月.\-/]\s*(\d{1,2})/);
+  const type = ['婚礼','订婚','满月','百日','寿宴','升学宴','乔迁'].find(k=>t.includes(k)) || '婚礼';
+  const vm = t.match(/([\u4e00-\u9fa5A-Za-z0-9]{2,12}(?:大酒店|酒店|饭店|酒楼|大厅))/);
+  const hm = t.match(/([\u4e00-\u9fa5]{2,3})(?:先生|女士)|为\s*([\u4e00-\u9fa5]{2,4})\s*(?:举行|结婚|办)/);
+  return { type,
+    date: dm ? `${dm[1]}-${String(dm[2]).padStart(2,'0')}-${String(dm[3]).padStart(2,'0')}` : '',
+    host: hm ? (hm[1]||hm[2]) : '', venue: vm ? vm[1] : '' };
+}
+function confirmCard(d){
+  return `<div class="card">
+    <h3>🐱 识别结果（可修改）</h3>
+    <label>事件类型</label>
+    <select id="ivType">${['婚礼','订婚','满月','百日','寿宴','升学宴','乔迁','开业'].map(k=>`<option ${k===d.type?'selected':''}>${k}</option>`).join('')}</select>
+    <label>日期</label>
+    <input type="date" id="ivDate" value="${d.date||''}">
+    <label>主人家（谁家的事）</label>
+    <input type="text" id="ivHost" value="${d.host||''}" placeholder="如：张家">
+    <label>地点备注</label>
+    <input type="text" id="ivVenue" value="${d.venue||''}">
+    <label>提前几天提醒我</label>
+    <select id="ivLead"><option value="1">前一天</option><option value="3" selected>前三天</option><option value="7">前一周</option></select>
+    <button class="btn" onclick="saveInvite()">生成提醒</button>
+  </div>`;
+}
+function saveInvite(){
+  const date = document.getElementById('ivDate').value;
+  if(!date){ toast('日期没有喵'); return; }
+  const type = document.getElementById('ivType').value;
+  const host = document.getElementById('ivHost').value.trim()||'请柬人家';
+  const venue = document.getElementById('ivVenue').value.trim();
+  const lead = parseInt(document.getElementById('ivLead').value);
+  const due = new Date(new Date(date)-lead*86400000).toISOString().slice(0,10);
+  DB.reminders.push({id:uid('r_'),householdId:null,dueDate:due,title:host+' · '+type+(venue?('（'+venue+'）'):''),kind:'invitation',status:'open'});
+  const foodMsg = '喵~ 请柬变成提醒了！猫粮 +' + addFood(2) + ' 🐾';
+  save();
+  toast(foodMsg);
+  renderReminders(); go('view-reminders');
+}
+
+/* ================= AI 换物 ================= */
+let exSrcCat = null, exSrcVal = null;
+function openExchange(){
+  const cats = [...new Set(GIFT_LIBRARY.map(g=>g.cat))];
+  document.getElementById('rxCat').innerHTML = cats.map(c=>`<option>${c}</option>`).join('') + '<option>其他</option>';
+  doExchange(); exTab(1); go('view-exchange');
+}
+function exTab(n){
+  document.getElementById('exPane1').style.display = n===1?'':'none';
+  document.getElementById('exPane2').style.display = n===2?'':'none';
+  document.getElementById('exTab1').classList.toggle('on',n===1);
+  document.getElementById('exTab2').classList.toggle('on',n===2);
+}
+function prefillExchange(name,val){ exSrcCat=name; exSrcVal=val; openExchange();
+  const sel=document.getElementById('rxCat'); [...sel.options].forEach(o=>{ if(o.text===name) sel.value=o.text; });
+  document.getElementById('rxValue').value=val; doExchange(); toast('喵~ 按这价帮你换'); }
+function pickFromHistory(){
+  const ins = DB.transactions.filter(t=>t.direction==='in').sort((a,b)=>b.date.localeCompare(a.date));
+  if(!ins.length){ toast('还没有收礼记录喵'); return; }
+  openModal('<h3>选一笔收到的礼</h3>'+ins.slice(0,6).map(t=>{
+    const h=DB.households.find(x=>x.id===t.householdId);
+    const g=t.gifts[0]||{};
+    return `<div class="suggest-item" style="cursor:pointer" onclick="closeModal();prefillExchange('${(g.name||t.type).replace(/'/g,'')}',${t.amount||200})">
+      <span>${h?h.name:'??'} · ${t.type}</span><span class="pr">${t.amount?fmt(t.amount):'心意'}</span></div>`;
+  }).join(''));
+}
+async function doExchange(){
+  const cat = document.getElementById('rxCat').value;
+  const val = parseFloat(document.getElementById('rxValue').value)||0;
+  const out = document.getElementById('exchangeOut');
+  if(!val){ out.innerHTML='<p class="muted" style="padding:10px 0">填个价值，喵~ 我来推荐等价不同品类</p>'; return; }
+  const head = '<p class="muted" style="margin:6px 0">收到「'+cat+' · '+fmt(val)+'」，账房猫推荐回这些：</p>';
+  if(aiReady()){
+    out.innerHTML = '<p class="muted" style="padding:10px 0">账房猫正在翻礼单……</p>';
+    try{
+      const raw = await glmCall([
+        {role:'system',content:'你是中式人情往来的送礼参谋。只输出一个JSON数组，禁止任何其他文字。格式：[{"name":"礼品名","lo":最低价,"hi":最高价}]'},
+        {role:'user',content:`收到「${cat}」类礼品，价值约${val}元。推荐3个等值但品类完全不同的回礼，价格区间贴合国内人情行情。`}
+      ]);
+      const arr = JSON.parse(raw.match(/\[[\s\S]*\]/)[0]).slice(0,3);
+      out.innerHTML = head + arr.map(g=>`<div class="suggest-item"><span class="pill">AI荐</span><span>${g.name}</span><span class="pr">${fmt(g.lo)}~${fmt(g.hi)}</span></div>`).join('');
+      return;
+    }catch(e){ toast('AI没连上，用本地礼单喵'); }
+  }
+  const pool = GIFT_LIBRARY.filter(g=>g.cat!==cat);
+  const picks = pool.map(g=>({...g,fit:Math.abs((g.lo+g.hi)/2-val)})).sort((a,b)=>a.fit-b.fit).slice(0,3);
+  out.innerHTML = head
+    + picks.map(g=>`<div class="suggest-item"><span class="pill">${g.cat}</span><span>${g.name}</span><span class="pr">${fmt(g.lo)}~${fmt(g.hi)}</span></div>`).join('');
+}
+async function doGiftIdea(){
+  const to = document.getElementById('gTo').value, occ = document.getElementById('gOcc').value;
+  const bud = parseFloat(document.getElementById('gBudget').value)||0;
+  const out = document.getElementById('giftIdeaOut');
+  if(!bud){ out.innerHTML='<p class="muted" style="padding:10px 0">填个预算，喵~</p>'; return; }
+  if(aiReady()){
+    out.innerHTML='<p class="muted" style="padding:10px 0">账房猫正在琢磨送什么……</p>';
+    try{
+      const raw = await glmCall([
+        {role:'system',content:'你是中式人情往来的送礼参谋。只输出一个JSON数组，禁止任何其他文字。格式：[{"name":"礼品名","lo":最低价,"hi":最高价}]'},
+        {role:'user',content:`送给${to}，场合是${occ}，预算${bud}元。推荐4个具体礼品，价格落在预算附近，符合国内人情习惯。`}
+      ]);
+      const arr = JSON.parse(raw.match(/\[[\s\S]*\]/)[0]).slice(0,4);
+      out.innerHTML = '<p class="muted" style="margin:6px 0">'+to+' · '+occ+' · 预算'+fmt(bud)+'，可以考虑：</p>'
+        + arr.map(g=>`<div class="suggest-item"><span class="pill">AI荐</span><span>${g.name}</span><span class="pr">${fmt(g.lo)}~${fmt(g.hi)}</span></div>`).join('');
+      return;
+    }catch(e){ toast('AI没连上，用本地礼单喵'); }
+  }
+  const picks = GIFT_LIBRARY.filter(g=>bud>=g.lo*0.8 && bud<=g.hi*1.4 && (g.occ.includes(occ)||g.occ.includes(to)))
+    .sort((a,b)=>Math.abs((a.lo+a.hi)/2-bud)-Math.abs((b.lo+b.hi)/2-bud)).slice(0,4);
+  out.innerHTML = picks.length
+    ? '<p class="muted" style="margin:6px 0">'+to+' · '+occ+' · 预算'+fmt(bud)+'，可以考虑：</p>'
+      + picks.map(g=>`<div class="suggest-item"><span class="pill">${g.cat}</span><span>${g.name}</span><span class="pr">${fmt(g.lo)}~${fmt(g.hi)}</span></div>`).join('')
+    : '<p class="muted" style="padding:10px 0">这个预算在该场合不太常见，建议往上或往下调一调，喵。</p>';
+}
+
+/* ================= 节日提醒 ================= */
+function renderReminders(){
+  const today = new Date().toISOString().slice(0,10);
+  const rs = DB.reminders.filter(r=>r.status==='open').sort((a,b)=>a.dueDate.localeCompare(b.dueDate));
+  document.getElementById('reminderList').innerHTML = rs.map(r=>{
+    const days = Math.ceil((new Date(r.dueDate)-new Date(today))/86400000);
+    const h = DB.households.find(x=>x.id===r.householdId);
+    const dTxt = days<0?'已过':days===0?'就是今天':days+' 天后';
+    return `<div class="row" onclick="doneReminder('${r.id}')">
+      <span class="tag ${days<=7?'out':'n'}">${days<=7?'近':'日'}</span>
+      <div class="info"><p>${r.title}</p><span>${r.dueDate}${h?' · '+h.name:''} · 点一下标记完成</span></div>
+      <b class="amount ${days<=7?'out':''}" style="font-size:13px">${dTxt}</b></div>`;
+  }).join('') || '<div class="empty">没有待办提醒，喵~</div>';
+}
+function doneReminder(id){ const r=DB.reminders.find(x=>x.id===id); r.status='done'; const g=addFood(2); save(); renderReminders(); toast('干得漂亮，猫粮 +'+g+' 🐾'); }
+function editReminder(){
+  openModal(`<h3>添加提醒</h3>
+    <label>事项</label><input id="rTitle" placeholder="如：中秋给大姨送礼">
+    <label>日期</label><input type="date" id="rDate">
+    <label>关联户（可选）</label><select id="rH"><option value="">不关联</option>${DB.households.map(h=>`<option value="${h.id}">${h.name}</option>`).join('')}</select>
+    <div class="rowflex" style="margin-top:10px"><button class="btn ghost" onclick="closeModal()">取消</button>
+    <button class="btn" onclick="saveReminder()">保存</button></div>`);
+}
+function saveReminder(){
+  const title = document.getElementById('rTitle').value.trim();
+  const date = document.getElementById('rDate').value;
+  if(!title||!date){ toast('事项和日期都要填喵'); return; }
+  DB.reminders.push({id:uid('r_'),householdId:document.getElementById('rH').value||null,dueDate:date,title,kind:'custom',status:'open'});
+  save(); closeModal(); renderReminders(); toast('喵~ 记在日历上了');
+}
+
+/* ================= 统计 ================= */
+function renderStats(){
+  const years = {};
+  DB.transactions.forEach(t=>{
+    const y = t.date.slice(0,4);
+    years[y] = years[y]||{out:0,inn:0};
+    years[y][t.direction==='out'?'out':'inn'] += t.amount||0;
+  });
+  const ys = Object.keys(years).sort().slice(-5);
+  const maxY = Math.max(1,...ys.map(y=>Math.max(years[y].out,years[y].inn)));
+  document.getElementById('chartYear').innerHTML = ys.map(y=>`
+    <div class="bar-row"><span class="bl">${y}</span><div class="track">
+      <div class="fill warm" style="width:${years[y].out/maxY*100}%"></div></div><span class="bv">出 ${fmt(years[y].out)}</span></div>
+    <div class="bar-row"><span class="bl"></span><div class="track">
+      <div class="fill green" style="width:${years[y].inn/maxY*100}%"></div></div><span class="bv">收 ${fmt(years[y].inn)}</span></div>`).join('')
+    || '<div class="empty">暂无数据</div>';
+  const byType = {};
+  DB.transactions.forEach(t=>{ byType[t.type]=(byType[t.type]||0)+(t.amount||0); });
+  const types = Object.entries(byType).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const maxT = Math.max(1,...types.map(x=>x[1]));
+  document.getElementById('chartType').innerHTML = types.map(([k,v])=>`
+    <div class="bar-row"><span class="bl">${k}</span><div class="track"><div class="fill" style="width:${v/maxT*100}%"></div></div>
+    <span class="bv">${fmt(v)}</span></div>`).join('') || '<div class="empty">暂无数据</div>';
+  const byRel = {};
+  DB.transactions.forEach(t=>{
+    const h = DB.households.find(x=>x.id===t.householdId); if(!h) return;
+    byRel[h.relation]=(byRel[h.relation]||0)+(t.amount||0);
+  });
+  const rels = Object.entries(byRel).sort((a,b)=>b[1]-a[1]);
+  const maxR = Math.max(1,...rels.map(x=>x[1]));
+  document.getElementById('chartCircle').innerHTML = rels.map(([k,v])=>`
+    <div class="bar-row"><span class="bl">${k}</span><div class="track"><div class="fill green" style="width:${v/maxR*100}%"></div></div>
+    <span class="bv">${fmt(v)}</span></div>`).join('') || '<div class="empty">暂无数据</div>';
+  const rankRows = DB.households.map(h=>({h,...hSums(h.id)}))
+    .map(x=>({...x,diff:x.inn-x.out})).sort((a,b)=>a.diff-b.diff);
+  const maxAbs = Math.max(1,...rankRows.map(r=>Math.abs(r.diff)));
+  document.getElementById('chartRank').innerHTML = rankRows.map((x,i)=>`
+    <div class="bar-row"><span class="bl">${i+1}. ${x.h.name}</span><div class="track">
+      <div class="fill ${x.diff>=0?'green':'warm'}" style="width:${Math.abs(x.diff)/maxAbs*100}%"></div></div>
+      <span class="bv">${x.diff>=0?'+':''}${fmt(x.diff)}</span></div>`).join('') || '<div class="empty">暂无数据</div>';
+}
+
+/* ================= 分享卡片 ================= */
+function openShare(){ drawShare(); go('view-share'); }
+function drawShare(){
+  const c = document.getElementById('shareCanvas'), ctx = c.getContext('2d');
+  const s = sums();
+  ctx.fillStyle='#F6F5F1'; ctx.fillRect(0,0,750,980);
+  ctx.fillStyle='#33312C'; ctx.font='bold 44px sans-serif'; ctx.textAlign='center';
+  ctx.fillText('我家的人情账', 375, 110);
+  ctx.fillStyle='#8A867C'; ctx.font='22px sans-serif';
+  ctx.fillText('情谊记在心里，数目写在纸上 · 脱敏分享版', 375, 152);
+  ctx.fillStyle='#F5CE7A'; roundRect(ctx,105,200,540,150,24); ctx.fill();
+  ctx.fillStyle='#4A3A10'; ctx.font='26px sans-serif';
+  ctx.fillText('总随出 '+fmt(s.out)+'   总收进 '+fmt(s.inn), 375, 268);
+  ctx.font='bold 34px sans-serif';
+  ctx.fillText('净差额 '+fmt(s.net), 375, 318);
+  const years={};
+  DB.transactions.forEach(t=>{ const y=t.date.slice(0,4); years[y]=years[y]||{out:0,inn:0}; years[y][t.direction==='out'?'out':'inn']+=t.amount||0; });
+  const ys=Object.keys(years).sort().slice(-4), maxY=Math.max(1,...ys.map(y=>Math.max(years[y].out,years[y].inn)));
+  ctx.fillStyle='#8A867C'; ctx.font='22px sans-serif'; ctx.fillText('年度往来趋势', 375, 420);
+  ys.forEach((y,i)=>{
+    const x=140+i*125, hOut=years[y].out/maxY*140, hIn=years[y].inn/maxY*140;
+    ctx.fillStyle='#D97B4A'; ctx.fillRect(x,640-hOut,36,hOut);
+    ctx.fillStyle='#7BA05B'; ctx.fillRect(x+42,640-hIn,36,hIn);
+    ctx.fillStyle='#8A867C'; ctx.font='20px sans-serif'; ctx.fillText(y,x+39,672);
+  });
+  ctx.fillStyle='#D97B4A'; ctx.fillRect(120,700,14,14); ctx.fillStyle='#8A867C'; ctx.fillText('随出',175,714);
+  ctx.fillStyle='#7BA05B'; ctx.fillRect(250,700,14,14); ctx.fillText('收进',305,714);
+  const feed=DB.settings.feed||0;
+  ctx.fillStyle='#F5CE7A'; [520,560,600].forEach((x,i)=>{ paw(ctx,x,760+i*26); });
+  ctx.fillStyle='#33312C'; ctx.font='bold 26px sans-serif';
+  ctx.fillText('已攒 '+feed+' 颗猫粮', 375, 800);
+  ctx.fillStyle='#8A867C'; ctx.font='20px sans-serif';
+  ctx.fillText('每记一笔账，就多一颗猫粮', 375, 838);
+  ctx.fillText('来自账房猫 · '+new Date().toLocaleDateString('zh-CN'), 375, 930);
+  function roundRect(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r);
+    ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+  function paw(ctx,x,y){ ctx.beginPath(); ctx.arc(x,y,6,0,7); ctx.fill();
+    ctx.beginPath(); ctx.arc(x-7,y-8,3,0,7); ctx.fill(); ctx.beginPath(); ctx.arc(x,y-10,3,0,7); ctx.fill();
+    ctx.beginPath(); ctx.arc(x+7,y-8,3,0,7); ctx.fill(); }
+}
+function downloadShare(){
+  const a = document.createElement('a');
+  a.download = '人情账-脱敏分享-'+new Date().toISOString().slice(0,10)+'.png';
+  a.href = document.getElementById('shareCanvas').toDataURL('image/png');
+  a.click(); toast('卡片已保存，喵~ 去发小红书吧');
+}
+
+/* ================= 账房猫对话 ================= */
+function openChat(){
+  document.getElementById('chatMask').style.display='block';
+  document.getElementById('chatPanel').style.display='flex';
+  document.getElementById('aiModeBadge').textContent = aiReady()?'真AI已连接 · 智谱GLM':'演示模式 · 咪~ 说话我帮你记';
+  if(!document.getElementById('chatMsgs').children.length){
+    catSay('咪~ 我是账房猫。跟我说人话就行，比如：<br>「随了张三家婚礼一千块」<br>「李家给我送了盒茶叶，大概三百」<br>也可以问我「这家该回多少礼」');
+  }
+}
+function closeChat(){ document.getElementById('chatMask').style.display='none'; document.getElementById('chatPanel').style.display='none'; }
+function meSay(t){ document.getElementById('chatMsgs').insertAdjacentHTML('beforeend',`<div class="msg me">${t}</div>`); scrollChat(); }
+function catSay(t){ document.getElementById('chatMsgs').insertAdjacentHTML('beforeend',`<div class="msg cat">${t}</div>`); scrollChat(); }
+function scrollChat(){ const m=document.getElementById('chatMsgs'); m.scrollTop=m.scrollHeight; }
+function sendChat(){
+  const inp = document.getElementById('chatText');
+  const text = inp.value.trim(); if(!text) return;
+  meSay(text); inp.value='';
+  if(/回礼|该回|该随|随多少/.test(text)){ answerReturn(text); return; }
+  if(!aiReady()){ offlineParse(text); return; }
+  catThinking();
+  glmCall([
+    {role:'system',content:'你是人情记账助手"账房猫"。把用户的话解析成一条人情账记录。只输出一个JSON对象，禁止任何其他文字：{"household":"户名","direction":"out或in(out=我随出,in=我收进)","type":"事件类型","amount":数字,"kind":"cash或gift","giftName":"实物礼品名，现金则为空","giftValue":数字或null,"note":"备注"}。type只能是：'+Object.keys(EVENT_META).join(',')+'。今天是'+todayStr()+'，"昨天/前天"等相对时间自行换算。金额换算：一千=1000，两万=20000；没提金额且是实物则kind=gift且amount=0。候选户：'+DB.households.map(h=>h.name).join(',')+'，匹配不上就给一个合理的户名（以"家"结尾）。'},
+    {role:'user',content:text}
+  ]).then(raw=>{
+    catDone();
+    const tx = parseAiTx(raw);
+    if(tx){ pendingChatTx = tx; showConfirm(tx); }
+    else catSay(raw.slice(0,180));
+  }).catch(e=>{
+    catDone();
+    catSay('AI 线路有点堵（'+e.message+'），我先用本地脑子记——');
+    offlineParse(text);
+  });
+}
+function catThinking(){ document.getElementById('chatMsgs').insertAdjacentHTML('beforeend','<div class="msg cat" id="catThinking">喵呜喵呜正在想……</div>'); scrollChat(); }
+function catDone(){ const el=document.getElementById('catThinking'); if(el) el.remove(); }
+function offlineParse(text){
+  const tx = parseTx(text);
+  if(tx){ pendingChatTx = tx; showConfirm(tx); }
+  else catSay('咪？没听太懂……试试带上「金额」和「事情」，比如「随了李家乔迁 500 块」。');
+}
+function parseTx(text){
+  let amount = null, dir = /收|收到|进账|给了我们|送给我们/.test(text) && !/随|包了|给了他家|送给他家/.test(text) ? 'in' : (/随|送|包了|给|收/.test(text)?(/给了我们|送给我们|收到|收了.*礼/.test(text)?'in':'out'):null);
+  if(/收了|收到/.test(text)) dir='in';
+  let m = text.match(/(\d+(?:\.\d+)?)\s*(?:万|千|块|元)/);
+  if(m){ amount = parseFloat(m[1]); if(text.includes('万')&&m[0].includes('万')) amount*=10000; else if(text.includes('千')&&m[0].includes('千')&&!m[0].includes('块')&&!m[0].includes('元')) amount*=1000; }
+  let type = null;
+  for(const k in EVENT_SYN){ if(EVENT_SYN[k].some(w=>text.includes(w)) || text.includes(k)) { type=k; break; } }
+  const h = DB.households.find(h=>text.includes(h.name.replace('家',''))||text.includes(h.name));
+  let hname = null;
+  if(!h){ const nm = text.match(/(?:给|随了?|送|收到|收了)([\u4e00-\u9fa5]{2,3}?)家/); if(nm) hname = nm[1]+'家'; }
+  if(amount===null && type===null) return null;
+  return { householdId:h?h.id:null, householdName:h?h.name:hname, direction:dir||'out',
+    type:type||(dir==='in'?'伴手礼':'答谢'), amount:amount||0, lunar:null, kind:'cash', gifts:[],
+    handler:DB.settings.members[0], counterpart:'', note:'账房猫记录' };
+}
+function showConfirm(tx){
+  const h = tx.householdId ? DB.households.find(x=>x.id===tx.householdId) : null;
+  catSay('我听成这样，对不对喵？');
+  document.getElementById('chatMsgs').insertAdjacentHTML('beforeend',
+    `<div class="confirm-card">
+      <div class="f"><span>户</span><b>${h?h.name:(tx.householdName?tx.householdName+'（新户，确认时自动建）':'<span style="color:var(--warm)">还没匹配到</span>')}</b></div>
+      <div class="f"><span>方向</span><b>${tx.direction==='out'?'我随出':'我收进'}</b></div>
+      <div class="f"><span>事件</span><b>${tx.type}</b></div>
+      <div class="f"><span>金额</span><b>${tx.amount?fmt(tx.amount):'心意型'}</b></div>
+      <div class="chips" style="margin-top:8px">${DB.households.slice(0,4).map(h=>`<button class="chip" onclick="fixHousehold('${h.id}')">改成${h.name}</button>`).join('')}</div>
+      <div class="rowflex"><button class="btn ghost small" onclick="catSay('那算了喵。');pendingChatTx=null;">不对，算了</button>
+      <button class="btn small" onclick="confirmChatTx()">没错，记上</button></div>
+    </div>`);
+  scrollChat();
+}
+function fixHousehold(hid){ if(pendingChatTx){ pendingChatTx.householdId=hid; pendingChatTx.householdName=DB.households.find(x=>x.id===hid).name; catSay('好，记到这户名下。确认吗？'); showConfirm(pendingChatTx); } }
+function confirmChatTx(){
+  if(!pendingChatTx) return;
+  const t = pendingChatTx;
+  let hid = t.householdId;
+  if(!hid && t.householdName){
+    const nm = t.householdName.endsWith('家') ? t.householdName : t.householdName+'家';
+    const hh = {id:uid('h_'), name:nm, members:[], relation:'其他', closeness:2, note:'账房猫建档', keyDates:[], createdAt:Date.now()};
+    DB.households.push(hh); hid = hh.id;
+  }
+  if(!hid){ catSay('这笔记到哪一户呀？点上面的户名按钮选一个喵。'); return; }
+  DB.transactions.push({id:uid('t_'),householdId:hid,direction:t.direction,type:t.type,
+    date:new Date().toISOString().slice(0,10),lunar:t.lunar,kind:t.kind,amount:t.amount,gifts:t.gifts,
+    handler:t.handler,counterpart:t.counterpart,note:t.note,createdAt:Date.now()});
+  const foodMsg = txFood(); save(); renderHome();
+  if(document.getElementById('view-cat').classList.contains('active')) renderCat();
+  catSay(foodMsg); pendingChatTx=null;
+}
+function answerReturn(text){
+  const h = DB.households.find(h=>text.includes(h.name.replace('家',''))||text.includes(h.name));
+  if(!h){ catSay('说说是哪一户嘛，比如「张家该回多少礼」？'); return; }
+  const red = DB.transactions.filter(t=>t.householdId===h.id&&t.direction==='in'&&EVENT_META[t.type]&&EVENT_META[t.type].cat==='red')
+    .sort((a,b)=>b.date.localeCompare(a.date))[0];
+  if(!red){ catSay(`「${h.name}」还没有随给我们的红事记录，按行情随就好，喵。`); return; }
+  const yrs = new Date().getFullYear()-parseInt(red.date.slice(0,4));
+  const base = Math.round(red.amount*(1+DB.settings.inflationRate*Math.max(yrs,0)));
+  catSay(`「${h.name}」${red.date} 的「${red.type}」随了我们 <b>${fmt(red.amount)}</b>，隔了 ${yrs} 年。<br>建议回 <b>${fmt(base)} ~ ${fmt(Math.round(base*1.15/10)*10)}</b>，宁多勿少喵！<br>要换实物的话，去「AI 换物」挑等价不同品类的~`);
+}
+
+/* ================= 猫窝模块 ================= */
+const todayStr = () => new Date().toISOString().slice(0,10);
+function ensureCat(){
+  if(!DB.cat){ DB.cat = { food:DB.settings.feed||0, fed:0, lastFed:Date.now(),
+    streak:0, lastTxDate:null, daily:{date:todayStr(),earned:0} }; save(); }
+}
+function addFood(n, capDaily){
+  const c = DB.cat; let gained = n;
+  if(capDaily){
+    if(!c.daily || c.daily.date!==todayStr()) c.daily = {date:todayStr(),earned:0};
+    gained = Math.min(n, Math.max(0, 3-c.daily.earned));
+    c.daily.earned += gained;
+  }
+  c.food += gained; DB.settings.feed = (DB.settings.feed||0)+gained;
+  return gained;
+}
+function bumpStreak(){
+  const c = DB.cat, t = todayStr();
+  if(c.lastTxDate === t) return c.streak||1;
+  const y = new Date(Date.now()-86400000).toISOString().slice(0,10);
+  c.streak = (c.lastTxDate===y) ? (c.streak||0)+1 : 1;
+  c.lastTxDate = t;
+  return c.streak;
+}
+function txFood(){
+  const st = bumpStreak();
+  const g = addFood(1, true);
+  let bonus = 0;
+  if(g>0 && st%3===0) bonus = addFood(3);
+  const total = g+bonus;
+  if(bonus) return `记好啦！猫粮 +${total}（连记 ${st} 天，额外 +3）🐾`;
+  if(g>0) return `喵~ 记好啦！猫粮 +${g} 🐾`;
+  return '记好啦喵（今天记账猫粮已攒满 3 颗）';
+}
+function catState(){
+  const c = DB.cat;
+  const days = Math.floor((Date.now()-(c.lastFed||Date.now()))/86400000);
+  const stage = c.fed>=25?'胖橘':c.fed>=10?'精神猫':'小奶猫';
+  return { hungry: days>=3, stage, next: c.fed>=25?null:(c.fed>=10?25:10) };
+}
+function renderCat(){
+  ensureCat();
+  const c = DB.cat, st = catState();
+  document.getElementById('catFoodCount').textContent = c.food;
+  document.getElementById('catStageName').textContent = st.stage + (st.hungry?' · 饿肚子了':'');
+  const base = st.next===25?10:0;
+  const pct = st.next ? Math.min(100, Math.round((c.fed-base)/(st.next-base)*100)) : 100;
+  document.getElementById('catGrowBar').style.width = pct+'%';
+  document.getElementById('catGrowText').textContent = st.next
+    ? `已喂 ${c.fed} 次 · 再喂 ${st.next-c.fed} 次长成${st.next===10?'精神猫':'胖橘'}`
+    : '已是圆滚滚的胖橘，猫生赢家喵~';
+  const svg = document.getElementById('bigCat');
+  svg.classList.toggle('stage-baby', st.stage==='小奶猫');
+  svg.classList.toggle('stage-fat', st.stage==='胖橘');
+  svg.classList.toggle('hungry', st.hungry);
+  document.getElementById('eyeOpen').style.display = st.hungry?'none':'';
+  document.getElementById('eyeSad').style.display = st.hungry?'':'none';
+  document.getElementById('catTear').style.display = st.hungry?'':'none';
+  const btn = document.getElementById('feedBtn');
+  btn.disabled = c.food<3;
+  btn.textContent = c.food<3 ? '猫粮不够啦，先去记账' : '喂猫（-3 颗）';
+  catSayBubble(st.hungry ? '喵呜……三天没吃了……' : (st.stage==='胖橘'?'呼噜呼噜~ 满足喵':'喵~ 点点我，或者喂我'));
+}
+let bubbleTimer = null;
+function catSayBubble(txt){
+  const b = document.getElementById('catBubble');
+  b.textContent = txt; b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop');
+}
+function tempBubble(txt){
+  catSayBubble(txt);
+  clearTimeout(bubbleTimer);
+  bubbleTimer = setTimeout(()=>{ const st=catState(); catSayBubble(st.hungry?'喵呜……好饿……':'喵~'); }, 1800);
+}
+function petCat(){
+  const svg = document.getElementById('bigCat');
+  svg.classList.add('petting');
+  setTimeout(()=>svg.classList.remove('petting'), 800);
+  const stage = document.getElementById('catStage');
+  for(let i=0;i<3;i++){
+    const h = document.createElement('span');
+    h.className='heart-float'; h.textContent='💗';
+    h.style.left = (44+i*9+Math.random()*6)+'%';
+    stage.appendChild(h); setTimeout(()=>h.remove(),1600);
+  }
+  tempBubble(['呼噜呼噜~','蹭蹭你','好舒服喵','再摸摸尾巴~'][Math.floor(Math.random()*4)]);
+}
+function feedCat(){
+  const c = DB.cat;
+  if(c.food<3){ toast('猫粮不够喵，先去记笔账~'); return; }
+  c.food -= 3; c.fed++; c.lastFed = Date.now(); save(); renderCat();
+  const stage = document.getElementById('catStage');
+  for(let i=0;i<4;i++){
+    const k = document.createElement('span');
+    k.className='kibble'; k.textContent='🍖';
+    k.style.left = (36+i*9)+'%';
+    stage.appendChild(k); setTimeout(()=>k.remove(),1400);
+  }
+  const svg = document.getElementById('bigCat');
+  svg.classList.add('eating'); setTimeout(()=>svg.classList.remove('eating'), 1400);
+  tempBubble(['咔嚓咔嚓~','真香喵！','再来一颗！'][Math.floor(Math.random()*3)]);
+  if(c.fed===10) setTimeout(()=>openModal('<h3>🎉 长大啦！</h3><p style="font-size:14px;line-height:1.7;text-align:center">小奶猫出落成了<b>精神猫</b>！<br>继续记账喂猫，喂满 25 次就变胖橘。</p><button class="btn" onclick="closeModal()">喵~</button>'), 1300);
+  if(c.fed===25) setTimeout(()=>openModal('<h3>🎉 猫生巅峰！</h3><p style="font-size:14px;line-height:1.7;text-align:center">圆滚滚的<b>胖橘</b>达成！<br>你也是个把人情账坚持记下去的人了。</p><button class="btn" onclick="closeModal()">骄傲脸</button>'), 1300);
+}
+function openCat(){ renderCat(); go('view-cat'); }
+
+/* ================= 真 AI（智谱 GLM） ================= */
+function aiReady(){ return !!(DB.settings.aiKey||'').trim(); }
+async function glmCall(messages, model){
+  const key = (DB.settings.aiKey||'').trim();
+  let res;
+  try{
+    res = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+      body: JSON.stringify({ model: model||'glm-4-flash', messages, temperature:0.3 })
+    });
+  }catch(e){ throw new Error('网络不通'); }
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  const d = await res.json();
+  return d.choices[0].message.content;
+}
+function parseAiTx(raw){
+  try{
+    const m = raw.match(/\{[\s\S]*\}/); if(!m) return null;
+    const j = JSON.parse(m[0]);
+    let hid = null;
+    const hname = (j.household||'').trim();
+    if(hname){
+      const h = DB.households.find(x=>x.name===hname || x.name.replace(/家$/,'')===hname.replace(/家$/,''));
+      if(h) hid = h.id;
+    }
+    const kind = j.kind==='gift'?'gift':'cash';
+    return { householdId:hid, householdName:hname||null, direction:j.direction==='in'?'in':'out',
+      type:EVENT_META[j.type]?j.type:'答谢', amount:Math.round(Number(j.amount))||0,
+      kind, gifts:(kind==='gift'&&j.giftName)?[{name:j.giftName,value:j.giftValue?Math.round(Number(j.giftValue)):null}]:[],
+      lunar:null, handler:DB.settings.members[0], counterpart:'', note:'账房猫记录' };
+  }catch(e){ return null; }
+}
+const thinkingCard = t => '<div class="card" style="text-align:center"><svg style="width:44px;height:44px"><use href="#cat"/></svg><p class="muted" style="margin-top:8px">'+t+'</p></div>';
+
+/* ================= 设置 / 安全 ================= */
+function renderSettings(){
+  document.getElementById('setName').value = DB.settings.bookName;
+  document.getElementById('aiKey').value = DB.settings.aiKey||'';
+  updateAiStatus();
+  document.getElementById('memberChips').innerHTML = DB.settings.members.map(m=>`<span class="pill">${m} <b style="cursor:pointer" onclick="delMember('${m}')">×</b></span>`).join('');
+}
+function saveSettings(){
+  DB.settings.bookName = document.getElementById('setName').value.trim()||DB.settings.bookName;
+  save(); renderHome(); toast('保存啦，喵');
+}
+function addMember(){
+  const v = document.getElementById('newMember').value.trim();
+  if(!v) return;
+  DB.settings.members.push(v); save(); renderSettings(); document.getElementById('newMember').value=''; toast('成员 +1');
+}
+function delMember(m){ DB.settings.members = DB.settings.members.filter(x=>x!==m); save(); renderSettings(); }
+function saveAiKey(){ DB.settings.aiKey = document.getElementById('aiKey').value.trim(); save(); updateAiStatus();
+  toast(DB.settings.aiKey?'Key 已保存，账房猫连上真 AI 啦':'已清除 Key，回到演示模式'); }
+function updateAiStatus(){
+  const el = document.getElementById('aiStatus');
+  if(el) el.textContent = aiReady() ? '● 真AI已就绪（智谱 GLM）' : '● 演示模式（离线知识库）';
+}
+function exportData(){
+  const a=document.createElement('a');
+  a.download='renqing-backup-'+new Date().toISOString().slice(0,10)+'.json';
+  a.href='data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(DB,null,2));
+  a.click(); toast('导出成功');
+}
+function importData(inp){
+  const f=inp.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{ try{ const d=JSON.parse(r.result); if(!d.households||!d.transactions) throw 0;
+    DB=d; save(); boot(); toast('导入成功'); }catch(e){ toast('文件不对喵'); } };
+  r.readAsText(f); inp.value='';
+}
+async function resetAll(){
+  if(!confirm('确定清空所有数据并重建演示账本？')) return;
+  localStorage.removeItem(LS_KEY); location.reload();
+}
+
+/* ================= 弹窗 / Toast ================= */
+function openModal(html){ document.getElementById('modalBox').innerHTML=html; document.getElementById('modalMask').style.display='flex'; }
+function closeModal(){ document.getElementById('modalMask').style.display='none'; }
+let toastTimer=null;
+function toast(t){ const el=document.getElementById('toast'); el.textContent=t; el.classList.add('show');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.classList.remove('show'),1800); }
+
+/* ================= 启动 ================= */
+function enterApp(){
+  document.getElementById('app').style.display='block';
+  document.getElementById('tabbar').style.display='flex';
+  renderHome(); renderSettings();
+}
+function boot(){
+  DB = load();
+  if(!DB || !DB.settings) seed();
+  ensureCat();
+  enterApp();
+}
+// 视图切换时按需重绘
+const _go = go;
+go = function(id){ _go(id); if(id==='view-stats') renderStats(); };
+// 启动
+boot();
+</script>
+</body>
+</html>
