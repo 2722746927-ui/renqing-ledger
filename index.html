@@ -548,7 +548,7 @@
   <div class="list">
     <div class="row" onclick="openShare()"><span class="tag n">享</span><div class="info"><p>分享</p><span>生成脱敏统计卡片</span></div></div>
     <div class="row" onclick="go('view-manual')"><span class="tag n">册</span><div class="info"><p>操作手册</p><span>三分钟学会记账</span></div></div>
-    <div class="row" onclick="go('view-about')"><span class="tag n">猫</span><div class="info"><p>关于我们</p><span>账号 · 团队 · 流浪猫计划</span></div></div>
+    <div class="row" onclick="go('view-about')"><span class="tag n">猫</span><div class="info"><p>关于我们</p><span>团队 · 流浪猫计划</span></div></div>
     <div class="row" onclick="go('view-settings')"><span class="tag n">设</span><div class="info"><p>设置</p><span>账本 · 成员 · AI · 数据</span></div></div>
   </div>
 </section>
@@ -591,12 +591,8 @@
     <p style="font-size:13.5px;line-height:1.7">你每记一笔账，账房猫就攒下一颗猫粮；每 10 颗猫粮，意味着一只流浪猫被投喂一次。我们与流浪猫救助站合作，把虚拟的投喂变成真实的猫粮捐赠。</p>
   </div>
   <div class="card">
-    <h3>📕 找到我们</h3>
-    <p style="font-size:13.5px;line-height:1.7">小红书搜索：<b>@账房猫的人情账</b>（占位，开号后替换）<br>记录产品诞生全过程 · 人情往来故事 · 养猫日常</p>
-  </div>
-  <div class="card">
-    <h3>👥 团队</h3>
-    <p style="font-size:13.5px;line-height:1.7">一个爱猫的高中生 + 一只不会记账的猫。（占位，答辩前润色）</p>
+    <h3> 团队</h3>
+    <p style="font-size:13.5px;line-height:1.7">一个爱猫的高中生 + 一只不会记账的猫。</p>
   </div>
 </section>
 
@@ -630,6 +626,7 @@
     </div>
     <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(this)">
     <button class="btn ghost small" style="margin-top:10px" onclick="resetAll()">清空重来（重建演示数据）</button>
+    <button class="btn ghost small" style="margin-top:10px;border-color:#e05a4e;color:#c74a3e" onclick="wipeData()">清空演示数据，开始我的账本</button>
   </div>
 </section>
 
@@ -710,6 +707,16 @@ const FESTIVAL_SEED = [
   {label:'春节（压岁钱季）',date:'2027-02-06',householdId:null,kind:'festival'},
   {label:'端午送礼',date:'2027-06-09',householdId:null,kind:'festival'},
   {label:'中秋送礼',date:'2027-09-15',householdId:null,kind:'festival'}
+];
+const FESTIVAL_PICKS = [
+  {label:'重阳敬老',date:'2026-10-18'},
+  {label:'元旦',date:'2027-01-01'},
+  {label:'除夕',date:'2027-02-05'},
+  {label:'春节（压岁钱季）',date:'2027-02-06'},
+  {label:'元宵',date:'2027-02-20'},
+  {label:'清明',date:'2027-04-05'},
+  {label:'端午送礼',date:'2027-06-09'},
+  {label:'中秋送礼',date:'2027-09-15'}
 ];
 
 /* ================= 数据层 ================= */
@@ -1241,11 +1248,24 @@ function renderReminders(){
 function doneReminder(id){ const r=DB.reminders.find(x=>x.id===id); r.status='done'; const g=addFood(2); save(); renderReminders(); toast('干得漂亮，猫粮 +'+g+' 🐾'); }
 function editReminder(){
   openModal(`<h3>添加提醒</h3>
+    <label>选节日（点一下自动填好）</label>
+    <div class="chips" style="margin-bottom:10px">${FESTIVAL_PICKS.map((f,i)=>`<span class="chip" onclick="pickFestival(${i})">${f.label}</span>`).join('')}</div>
     <label>事项</label><input id="rTitle" placeholder="如：中秋给大姨送礼">
     <label>日期</label><input type="date" id="rDate">
     <label>关联户（可选）</label><select id="rH"><option value="">不关联</option>${DB.households.map(h=>`<option value="${h.id}">${h.name}</option>`).join('')}</select>
     <div class="rowflex" style="margin-top:10px"><button class="btn ghost" onclick="closeModal()">取消</button>
     <button class="btn" onclick="saveReminder()">保存</button></div>`);
+}
+function pickFestival(i){
+  const f = FESTIVAL_PICKS[i];
+  document.getElementById('rTitle').value = f.label;
+  document.getElementById('rDate').value = f.date;
+}
+function wipeData(){
+  if(!confirm('清空全部演示数据？\n\n户档案、流水、节日提醒会被清空（设置、API Key 和你的猫会保留），且无法恢复。建议先导出 JSON 备份。')) return;
+  if(!confirm('再次确认：真的要清空吗？')) return;
+  DB.households = []; DB.transactions = []; DB.reminders = [];
+  save(); location.reload();
 }
 function saveReminder(){
   const title = document.getElementById('rTitle').value.trim();
