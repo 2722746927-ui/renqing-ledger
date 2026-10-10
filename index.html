@@ -368,7 +368,7 @@
 <section id="view-hdetail" class="view">
   <div class="subhead"><button class="back" onclick="renderHouseholds();go('view-households')">‹</button><h1 id="hdName">户详情</h1></div>
   <div class="card" id="hdSuggest"></div>
-  <div class="sec-head" style="margin-top:4px"><h2>往来明细</h2><span><a id="hdToggle" onclick="hdToggleView()">表格视图</a> · <a onclick="exportHouseholdCsv()">导出Excel</a> · <a onclick="editHousehold(currentH)">编辑资料</a></span></div>
+  <div class="sec-head" style="margin-top:4px"><h2>往来明细</h2><span><a id="hdToggle" onclick="hdToggleView()">表格视图</a> · <a onclick="exportHouseholdCsv()">导出Excel</a> · <a onclick="editHousehold(currentH)">编辑资料</a> · <a style="color:#c74a3e" onclick="delHousehold(currentH)">删除户</a></span></div>
   <div class="list" id="hdTimeline"></div>
   <div class="list" id="hdTableWrap" style="display:none;overflow-x:auto"></div>
 </section>
@@ -976,6 +976,17 @@ function saveHousehold(hid){
   else { DB.households.push({id:uid('h_'),keyDates:[],createdAt:Date.now(),...data}); }
   save(); closeModal(); renderHouseholds(); renderHome(); toast('喵~ 户档案更新啦');
 }
+function delHousehold(hid){
+  const h = DB.households.find(x=>x.id===hid); if(!h) return;
+  const n = DB.transactions.filter(t=>t.householdId===hid).length;
+  if(!confirm('删除「'+h.name+'」？\n\n该户的 '+n+' 笔往来记录会一起删除，不可恢复喵。')) return;
+  if(!confirm('再次确认：真的要删除这户人家吗？')) return;
+  DB.households = DB.households.filter(x=>x.id!==hid);
+  DB.transactions = DB.transactions.filter(t=>t.householdId!==hid);
+  DB.reminders.forEach(r=>{ if(r.householdId===hid) r.householdId=null; });
+  currentH = null;
+  save(); closeModal(); renderHouseholds(); renderHome(); toast('已删除「'+h.name+'」');
+}
 function quickAddHousehold(){
   openModal(`<h3>新建一户</h3><label>户名 *</label><input id="mName" placeholder="如：张建国家">
     <label>关系</label><select id="mRel">${RELATION_LIST.map(r=>`<option>${r}</option>`).join('')}</select>
@@ -1389,7 +1400,7 @@ function sendChat(){
   if(!aiReady()){ offlineParse(text); return; }
   catThinking();
   glmCall([
-    {role:'system',content:'你是人情记账助手"账房猫"。把用户的话解析成一条人情账记录。只输出一个JSON对象，禁止任何其他文字：{"household":"户名","direction":"out或in(out=我随出,in=我收进)","type":"事件类型","amount":数字,"kind":"cash或gift","giftName":"实物礼品名，现金则为空","giftValue":数字或null,"note":"备注"}。type只能是：'+Object.keys(EVENT_META).join(',')+'。今天是'+todayStr()+'，"昨天/前天"等相对时间自行换算。金额换算：一千=1000，两万=20000；没提金额且是实物则kind=gift且amount=0。候选户：'+DB.households.map(h=>h.name).join(',')+'，匹配不上就给一个合理的户名（以"家"结尾）。'},
+    {role:'system',content:'你是人情记账助手"账房猫"。把用户的话解析成一条人情账记录。只输出一个JSON对象，禁止任何其他文字：{"household":"户名","direction":"out或in(out=我随出,in=我收进)","type":"事件类型","date":"YYYY-MM-DD，用户没说日期就是今天，说了昨天/前天/上周等就换算成真实日期","amount":数字,"kind":"cash或gift","giftName":"实物礼品名，现金则为空","giftValue":数字或null,"note":"备注"}。type只能是：'+Object.keys(EVENT_META).join(',')+'。今天是'+todayStr()+'。金额换算：一千=1000，两万=20000；没提金额且是实物则kind=gift且amount=0。候选户：'+DB.households.map(h=>h.name).join(',')+'，匹配不上就给一个合理的户名（以"家"结尾）。'},
     {role:'user',content:text}
   ]).then(raw=>{
     catDone();
@@ -1455,6 +1466,7 @@ function showConfirm(tx){
       <div class="f"><span>户</span><b>${h?h.name:(tx.householdName?tx.householdName+'（新户，确认时自动建）':'<span style="color:var(--warm)">还没匹配到</span>')}</b></div>
       <div class="f"><span>方向</span><b>${tx.direction==='out'?'我随出':'我收进'}</b></div>
       <div class="f"><span>事件</span><b>${tx.type}</b></div>
+      <div class="f"><span>日期</span><b>${tx.date||'今天'}</b></div>
       <div class="f"><span>金额</span><b>${tx.amount?fmt(tx.amount):'心意型'}</b></div>
       <div class="chips" style="margin-top:8px">${DB.households.slice(0,4).map(h=>`<button class="chip" onclick="fixHousehold('${h.id}')">改成${h.name}</button>`).join('')}</div>
       <div class="rowflex"><button class="btn ghost small" onclick="catSay('那算了喵。');pendingChatTx=null;">不对，算了</button>
@@ -1474,7 +1486,7 @@ function confirmChatTx(){
   }
   if(!hid){ catSay('这笔记到哪一户呀？点上面的户名按钮选一个喵。'); return; }
   DB.transactions.push({id:uid('t_'),householdId:hid,direction:t.direction,type:t.type,
-    date:new Date().toISOString().slice(0,10),lunar:t.lunar,kind:t.kind,amount:t.amount,gifts:t.gifts,
+    date:t.date||new Date().toISOString().slice(0,10),lunar:t.lunar,kind:t.kind,amount:t.amount,gifts:t.gifts,
     handler:t.handler,counterpart:t.counterpart,note:t.note,createdAt:Date.now()});
   const foodMsg = txFood(); save(); renderHome();
   if(document.getElementById('view-cat').classList.contains('active')) renderCat();
@@ -1623,8 +1635,9 @@ function parseAiTx(raw){
       if(h) hid = h.id;
     }
     const kind = j.kind==='gift'?'gift':'cash';
+    const d = /^\d{4}-\d{2}-\d{2}$/.test(j.date||'') ? j.date : todayStr();
     return { householdId:hid, householdName:hname||null, direction:j.direction==='in'?'in':'out',
-      type:EVENT_META[j.type]?j.type:'答谢', amount:Math.round(Number(j.amount))||0,
+      type:EVENT_META[j.type]?j.type:'答谢', date:d, amount:Math.round(Number(j.amount))||0,
       kind, gifts:(kind==='gift'&&j.giftName)?[{name:j.giftName,value:j.giftValue?Math.round(Number(j.giftValue)):null}]:[],
       lunar:null, handler:DB.settings.members[0], counterpart:'', note:'账房猫记录' };
   }catch(e){ return null; }
