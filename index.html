@@ -906,7 +906,7 @@ function renderTimeline(h){
   document.getElementById('hdTimeline').innerHTML = ts.map(t=>{
     const isOut = t.direction==='out';
     const giftTxt = t.kind==='gift' ? t.gifts.map(g=>g.name+(g.value?(' '+fmt(g.value)):'（心意）')).join('、') : '现金';
-    return `<div class="row" onclick="delTx('${t.id}')">
+    return `<div class="row" onclick="editTx('${t.id}')">
       <span class="tag ${t.direction}">${isOut?'出':'收'}</span>
       <div class="info"><p>${esc(t.type)}${t.counterpart?' · '+esc(t.counterpart):''}</p><span>${t.date} · ${esc(giftTxt)} · ${esc(t.handler)}${t.note?' · '+esc(t.note):''}</span></div>
       <b class="amount ${t.direction}">${isOut?'-':'+'}${fmt(t.amount)}</b></div>`;
@@ -950,6 +950,62 @@ function exportHouseholdCsv(){
   a.download = h.name+'-人情明细.csv';
   a.click();
   toast('表格导出啦，双击用 Excel 打开就是表');
+}
+function editTx(id){
+  const t = DB.transactions.find(x=>x.id===id); if(!t) return;
+  const g = t.gifts[0]||{name:'',value:null};
+  openModal(`<h3>编辑这笔往来</h3>
+    <label>方向</label><select id="mDir"><option value="out" ${t.direction==='out'?'selected':''}>我随出</option><option value="in" ${t.direction==='in'?'selected':''}>我收进</option></select>
+    <label>事件类型</label><select id="mType">${Object.keys(EVENT_META).map(k=>`<option ${t.type===k?'selected':''}>${k}</option>`).join('')}</select>
+    <label>日期</label><input type="date" id="mDate" value="${t.date||''}">
+    <label>形式</label><select id="mKind" onchange="mKindSwitch()"><option value="cash" ${t.kind!=='gift'?'selected':''}>现金</option><option value="gift" ${t.kind==='gift'?'selected':''}>实物礼品</option></select>
+    <div id="mCashBox" style="${t.kind==='gift'?'display:none':''}">
+      <label>金额（元）</label><input type="number" id="mAmount" value="${t.kind!=='gift'?t.amount:''}" placeholder="如 800">
+    </div>
+    <div id="mGiftBox" style="${t.kind==='gift'?'':'display:none'}">
+      <label>礼品名称 *</label><input id="mGiftName" value="${esc(g.name)}" placeholder="如：茶叶礼盒">
+      <label>估值（元，可空=心意）</label><input type="number" id="mGiftValue" value="${g.value??''}" placeholder="如 300">
+    </div>
+    <label>经手人</label><select id="mHandler">${DB.settings.members.map(m=>`<option ${t.handler===m?'selected':''}>${esc(m)}</option>`).join('')}</select>
+    <label>对方（收礼人/随礼人，可不填）</label><input id="mCounterpart" value="${esc(t.counterpart||'')}">
+    <label>备注</label><input id="mNote" value="${esc(t.note||'')}">
+    <div class="rowflex" style="margin-top:10px">
+      <button class="btn ghost" onclick="closeModal()">取消</button>
+      <button class="btn ghost" style="color:var(--warm)" onclick="delTx('${t.id}')">删除</button>
+      <button class="btn" onclick="saveTxEdit('${t.id}')">保存</button>
+    </div>`);
+}
+function mKindSwitch(){
+  const gift = document.getElementById('mKind').value==='gift';
+  document.getElementById('mCashBox').style.display = gift?'none':'';
+  document.getElementById('mGiftBox').style.display = gift?'':'none';
+}
+function saveTxEdit(id){
+  const t = DB.transactions.find(x=>x.id===id); if(!t) return;
+  const date = document.getElementById('mDate').value;
+  if(!date){ toast('日期要填喵'); return; }
+  const kind = document.getElementById('mKind').value;
+  let amount = 0, gifts = [];
+  if(kind==='cash'){
+    const v = parseFloat(document.getElementById('mAmount').value);
+    if(!(v>0)){ toast('金额要是大于 0 的数字喵'); return; }
+    amount = v;
+  } else {
+    const name = document.getElementById('mGiftName').value.trim();
+    if(!name){ toast('礼品名称要填喵'); return; }
+    const val = document.getElementById('mGiftValue').value;
+    let gv = val===''?null:parseFloat(val);
+    if(gv!==null && !(gv>0)){ toast('礼品估值要是大于 0 的数字喵'); return; }
+    gifts = [{name, value:gv}]; amount = gv||0;
+  }
+  t.direction = document.getElementById('mDir').value;
+  t.type = document.getElementById('mType').value;
+  t.date = date;
+  t.kind = kind; t.amount = amount; t.gifts = gifts;
+  t.handler = document.getElementById('mHandler').value;
+  t.counterpart = document.getElementById('mCounterpart').value.trim();
+  t.note = document.getElementById('mNote').value.trim();
+  save(); closeModal(); renderHome(); openH(currentH); toast('改好了，喵');
 }
 function delTx(id){
   openModal(`<h3>删除这笔往来？</h3><p class="muted" style="margin-bottom:14px">删除后不可恢复，喵。</p>
