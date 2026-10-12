@@ -770,6 +770,8 @@ function go(id){
 
 /* ================= 首页渲染 ================= */
 const fmt = n => '¥' + Math.round(n).toLocaleString('zh-CN');
+const esc = s => String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const localDateStr = d => { const x = d?new Date(d):new Date(); return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0'); };
 function sums(){
   let out=0, inn=0;
   DB.transactions.forEach(t => {
@@ -791,7 +793,7 @@ function renderHome(){
     const giftTxt = t.kind==='gift' && t.gifts.length ? ' · '+t.gifts.map(g=>g.name).join('、') : '';
     return `<div class="row" onclick="openH('${t.householdId}')">
       <span class="tag ${t.direction}">${t.direction==='out'?'出':'收'}</span>
-      <div class="info"><p>${h?h.name:'未知户'} · ${t.type}</p><span>${t.date} · ${t.handler}${giftTxt}</span></div>
+      <div class="info"><p>${h?esc(h.name):'未知户'} · ${esc(t.type)}</p><span>${t.date} · ${esc(t.handler)}${esc(giftTxt)}</span></div>
       <b class="amount ${t.direction}">${t.direction==='out'?'-':'+'}${t.kind==='gift'&&t.amount===0?'心意':fmt(t.amount)}</b></div>`;
   }).join('') || '<div class="empty">还没有往来，喵~ 点上面「记一笔」</div>';
 }
@@ -803,11 +805,12 @@ function renderFeed(){
 /* ================= 记一笔 ================= */
 function openAdd(){
   const sel = document.getElementById('addHousehold');
-  sel.innerHTML = DB.households.map(h=>`<option value="${h.id}">${h.name}</option>`).join('');
+  sel.innerHTML = DB.households.map(h=>`<option value="${h.id}">${esc(h.name)}</option>`).join('');
   document.getElementById('addType').innerHTML = Object.keys(EVENT_META).map(k=>`<option>${k}</option>`).join('');
-  document.getElementById('addHandler').innerHTML = DB.settings.members.map(m=>`<option>${m}</option>`).join('');
-  document.getElementById('addDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('addHandler').innerHTML = DB.settings.members.map(m=>`<option>${esc(m)}</option>`).join('');
+  document.getElementById('addDate').value = localDateStr();
   document.getElementById('addAmount').value='';
+  document.getElementById('giftName').value=''; document.getElementById('giftValue').value='';
   document.getElementById('addNote').value=''; document.getElementById('addCounterpart').value='';
   document.getElementById('addLunar').value='';
   go('view-add');
@@ -827,13 +830,16 @@ function saveTx(){
     counterpart:document.getElementById('addCounterpart').value, note:document.getElementById('addNote').value,
     createdAt:Date.now() };
   if(addKind==='cash'){
-    t.amount = parseFloat(document.getElementById('addAmount').value)||0;
-    if(!t.amount){ toast('金额还没填喵'); return; }
+    const v = parseFloat(document.getElementById('addAmount').value);
+    if(!(v>0)){ toast('金额要是大于 0 的数字喵'); return; }
+    t.amount = v;
   } else {
     const name = document.getElementById('giftName').value.trim();
     if(!name){ toast('礼品名称还没填喵'); return; }
     const val = document.getElementById('giftValue').value;
-    const g = {name, value: val===''?null:parseFloat(val)};
+    let gv = val===''?null:parseFloat(val);
+    if(gv!==null && !(gv>0)){ toast('礼品估值要是大于 0 的数字喵'); return; }
+    const g = {name, value: gv};
     t.gifts=[g]; t.amount = g.value||0;
   }
   DB.transactions.push(t);
@@ -849,8 +855,8 @@ function renderHouseholds(){
   document.getElementById('householdList').innerHTML = DB.households.map(h=>{
     const {out,inn} = hSums(h.id);
     return `<div class="row" onclick="openH('${h.id}')">
-      <span class="tag n">${h.name[0]}</span>
-      <div class="info"><p>${h.name}</p><span>${h.relation} · 亲疏${h.closeness} · 往来${DB.transactions.filter(t=>t.householdId===h.id).length}笔</span></div>
+      <span class="tag n">${esc(h.name[0])}</span>
+      <div class="info"><p>${esc(h.name)}</p><span>${esc(h.relation)} · 亲疏${h.closeness} · 往来${DB.transactions.filter(t=>t.householdId===h.id).length}笔</span></div>
       <b class="amount ${inn-out>=0?'in':'out'}">${fmt(inn-out)}</b></div>`;
   }).join('') || '<div class="empty">还没有户，点下面新建</div>';
 }
@@ -890,8 +896,8 @@ function renderSuggest(h){
   if(lastIn){
     const g = lastIn.gifts[0];
     html += `<div style="margin-top:10px;display:flex;align-items:center;gap:8px">
-      <span class="muted">上次收他家：${g.name}${g.value?(' '+fmt(g.value)):'（心意）'}</span>
-      <button class="btn small" onclick="prefillExchange('${g.name.replace(/'/g,'')}',${g.value||200})">AI 换物回礼</button></div>`;
+      <span class="muted">上次收他家：${esc(g.name)}${g.value?(' '+fmt(g.value)):'（心意）'}</span>
+      <button class="btn small" data-n="${esc(g.name)}" onclick="prefillExchange(this.dataset.n,${g.value||200})">AI 换物回礼</button></div>`;
   }
   box.innerHTML = html;
 }
@@ -902,7 +908,7 @@ function renderTimeline(h){
     const giftTxt = t.kind==='gift' ? t.gifts.map(g=>g.name+(g.value?(' '+fmt(g.value)):'（心意）')).join('、') : '现金';
     return `<div class="row" onclick="delTx('${t.id}')">
       <span class="tag ${t.direction}">${isOut?'出':'收'}</span>
-      <div class="info"><p>${t.type}${t.counterpart?' · '+t.counterpart:''}</p><span>${t.date} · ${giftTxt} · ${t.handler}${t.note?' · '+t.note:''}</span></div>
+      <div class="info"><p>${esc(t.type)}${t.counterpart?' · '+esc(t.counterpart):''}</p><span>${t.date} · ${esc(giftTxt)} · ${esc(t.handler)}${t.note?' · '+esc(t.note):''}</span></div>
       <b class="amount ${t.direction}">${isOut?'-':'+'}${fmt(t.amount)}</b></div>`;
   }).join('') || '<div class="empty">还没有往来</div>';
 }
@@ -922,10 +928,10 @@ function renderHdTable(h){
     <tbody>${ts.map(t=>{
       const isOut = t.direction==='out';
       const item = t.kind==='gift' ? t.gifts.map(g=>g.name+(g.value?('('+fmt(g.value)+')'):'(心意)')).join('、') : '现金';
-      return `<tr><td>${t.date}</td><td>${t.type}${t.counterpart?'·'+t.counterpart:''}</td>
+      return `<tr><td>${t.date}</td><td>${esc(t.type)}${t.counterpart?'·'+esc(t.counterpart):''}</td>
         <td>${isOut?'随出':'收进'}</td>
         <td class="amount ${t.direction}">${isOut?'-':'+'}${fmt(t.amount)}</td>
-        <td>${t.handler||''}</td><td>${item}${t.note?' · '+t.note:''}</td></tr>`;
+        <td>${esc(t.handler||'')}</td><td>${esc(item)}${t.note?' · '+esc(t.note):''}</td></tr>`;
     }).join('')}</tbody></table>`;
 }
 function exportHouseholdCsv(){
@@ -1008,7 +1014,7 @@ function openInvite(){
   ['inviteOut','bookOut'].forEach(id=>document.getElementById(id).innerHTML='');
   ['inviteText','bookText'].forEach(id=>document.getElementById(id).value='');
   ['invitePreview','bookPreview'].forEach(id=>document.getElementById(id).style.display='none');
-  document.getElementById('bkDate').value=new Date().toISOString().slice(0,10);
+  document.getElementById('bkDate').value=localDateStr();
   switchTab('book');
   go('view-invite');
 }
@@ -1049,13 +1055,16 @@ async function recognizeBook(fromFile, dataUrl){
         out.innerHTML = '<p class="muted" style="margin-bottom:8px">真AI识别完成 · 勾选核对后再入账</p>' + bookRowsCard(rows);
         return;
       }
-    }catch(e){ toast('AI读图没成功（'+e.message+'），先按示例填'); }
+    }catch(e){
+      out.innerHTML = '<div class="card"><p class="muted">AI 读图没成功（'+esc(e.message)+'）。检查网络后重拍一张试试，或者把文字粘贴到上面输入框识别。</p></div>';
+    }
   }
   setTimeout(()=>{
     let rows, note='';
     if(fromFile && !text){
+      if(aiReady()) return;
       rows = [{name:'张大伯',amount:1000},{name:'李婶一家',amount:600},{name:'王叔叔',amount:800},{name:'赵阿姨',amount:600},{name:'钱伯',amount:2000},{name:'孙姑妈',amount:1200}];
-      note = '<p class="muted" style="margin-bottom:8px">演示模式：填入智谱 API Key 后，账房猫会真读你拍的照片。先按示例填好。</p>';
+      note = '<p class="muted" style="margin-bottom:8px">【演示示例数据，不是识别结果】填入智谱 API Key 后，账房猫会真读你拍的照片。</p>';
     } else {
       rows = parseBookLines(text);
       if(!rows.length){ out.innerHTML = '<div class="card"><p class="muted">没认出几行"名字 金额"，喵……看看格式对不对。</p></div>'; return; }
@@ -1067,7 +1076,7 @@ function bookRowsCard(rows){
   const body = rows.map((r,i)=>`
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
       <input type="checkbox" checked id="bkCk${i}" style="width:18px;height:18px">
-      <input type="text" id="bkNm${i}" value="${r.name}" style="flex:1;margin-bottom:0">
+      <input type="text" id="bkNm${i}" value="${esc(r.name)}" style="flex:1;margin-bottom:0">
       <input type="number" id="bkAmt${i}" value="${r.amount}" style="width:90px;margin-bottom:0">
     </div>`).join('');
   return `<div class="card"><h3>🐱 识别到 ${rows.length} 笔（勾选后入库）</h3>${body}
@@ -1075,12 +1084,13 @@ function bookRowsCard(rows){
 }
 function saveBook(n){
   const type = document.getElementById('bkType').value;
-  const date = document.getElementById('bkDate').value || new Date().toISOString().slice(0,10);
+  const date = document.getElementById('bkDate').value || localDateStr();
   let saved=0, total=0;
   for(let i=0;i<n;i++){
     if(!document.getElementById('bkCk'+i).checked) continue;
     const name = document.getElementById('bkNm'+i).value.trim(); if(!name) continue;
-    const amount = parseFloat(document.getElementById('bkAmt'+i).value)||0;
+    const amount = parseFloat(document.getElementById('bkAmt'+i).value);
+    if(!(amount>0)) continue;
     let hh = DB.households.find(h=>h.name===name || h.name===name+'家' || (h.members||[]).includes(name));
     if(!hh){
       hh = {id:uid('h_'), name:(name.endsWith('家')?name:name+'家'), members:[name], relation:'其他', closeness:2, note:'红本本识别入库', keyDates:[], createdAt:new Date().toISOString()};
@@ -1114,13 +1124,16 @@ async function recognizeInvite(fromFile, dataUrl){
       const d = JSON.parse(raw.match(/\{[\s\S]*\}/)[0]);
       out.innerHTML = '<p class="muted" style="margin-bottom:8px">真AI识别完成 · 可修改</p>' + confirmCard(d);
       return;
-    }catch(e){ toast('AI读图没成功（'+e.message+'），先按示例填'); }
+    }catch(e){
+      out.innerHTML = '<div class="card"><p class="muted">AI 读图没成功（'+esc(e.message)+'）。检查网络后重拍一张试试，或者把请柬文字粘贴到上面输入框识别。</p></div>';
+    }
   }
   setTimeout(()=>{
     let d, note='';
     if(fromFile && !text){
+      if(aiReady()) return;
       d = {type:'婚礼',date:'2026-11-08',host:'张晓雨',venue:'金桂大酒店'};
-      note = '<p class="muted" style="margin-bottom:8px">演示模式：填入智谱 API Key 后，账房猫会真读你拍的请柬。先按示例填好。</p>';
+      note = '<p class="muted" style="margin-bottom:8px">【演示示例数据，不是识别结果】填入智谱 API Key 后，账房猫会真读你拍的请柬。</p>';
     } else {
       d = parseInviteText(text);
     }
@@ -1144,9 +1157,9 @@ function confirmCard(d){
     <label>日期</label>
     <input type="date" id="ivDate" value="${d.date||''}">
     <label>主人家（谁家的事）</label>
-    <input type="text" id="ivHost" value="${d.host||''}" placeholder="如：张家">
+    <input type="text" id="ivHost" value="${esc(d.host||'')}" placeholder="如：张家">
     <label>地点备注</label>
-    <input type="text" id="ivVenue" value="${d.venue||''}">
+    <input type="text" id="ivVenue" value="${esc(d.venue||'')}">
     <label>提前几天提醒我</label>
     <select id="ivLead"><option value="1">前一天</option><option value="3" selected>前三天</option><option value="7">前一周</option></select>
     <button class="btn" onclick="saveInvite()">生成提醒</button>
@@ -1159,7 +1172,7 @@ function saveInvite(){
   const host = document.getElementById('ivHost').value.trim()||'请柬人家';
   const venue = document.getElementById('ivVenue').value.trim();
   const lead = parseInt(document.getElementById('ivLead').value);
-  const due = new Date(new Date(date)-lead*86400000).toISOString().slice(0,10);
+  const due = localDateStr(new Date(date)-lead*86400000);
   DB.reminders.push({id:uid('r_'),householdId:null,dueDate:due,title:host+' · '+type+(venue?('（'+venue+'）'):''),kind:'invitation',status:'open'});
   const foodMsg = '喵~ 请柬变成提醒了！猫粮 +' + addFood(2) + ' 🐾';
   save();
@@ -1189,8 +1202,9 @@ function pickFromHistory(){
   openModal('<h3>选一笔收到的礼</h3>'+ins.slice(0,6).map(t=>{
     const h=DB.households.find(x=>x.id===t.householdId);
     const g=t.gifts[0]||{};
-    return `<div class="suggest-item" style="cursor:pointer" onclick="closeModal();prefillExchange('${(g.name||t.type).replace(/'/g,'')}',${t.amount||200})">
-      <span>${h?h.name:'??'} · ${t.type}</span><span class="pr">${t.amount?fmt(t.amount):'心意'}</span></div>`;
+    const nm = g.name||t.type;
+    return `<div class="suggest-item" style="cursor:pointer" data-n="${esc(nm)}" onclick="closeModal();prefillExchange(this.dataset.n,${t.amount||200})">
+      <span>${h?esc(h.name):'??'} · ${esc(t.type)}</span><span class="pr">${t.amount?fmt(t.amount):'心意'}</span></div>`;
   }).join(''));
 }
 async function doExchange(){
@@ -1244,7 +1258,7 @@ async function doGiftIdea(){
 
 /* ================= 节日提醒 ================= */
 function renderReminders(){
-  const today = new Date().toISOString().slice(0,10);
+  const today = localDateStr();
   const rs = DB.reminders.filter(r=>r.status==='open').sort((a,b)=>a.dueDate.localeCompare(b.dueDate));
   document.getElementById('reminderList').innerHTML = rs.map(r=>{
     const days = Math.ceil((new Date(r.dueDate)-new Date(today))/86400000);
@@ -1252,7 +1266,7 @@ function renderReminders(){
     const dTxt = days<0?'已过':days===0?'就是今天':days+' 天后';
     return `<div class="row" onclick="doneReminder('${r.id}')">
       <span class="tag ${days<=7?'out':'n'}">${days<=7?'近':'日'}</span>
-      <div class="info"><p>${r.title}</p><span>${r.dueDate}${h?' · '+h.name:''} · 点一下标记完成</span></div>
+      <div class="info"><p>${esc(r.title)}</p><span>${r.dueDate}${h?' · '+esc(h.name):''} · 点一下标记完成</span></div>
       <b class="amount ${days<=7?'out':''}" style="font-size:13px">${dTxt}</b></div>`;
   }).join('') || '<div class="empty">没有待办提醒，喵~</div>';
 }
@@ -1385,7 +1399,7 @@ function openChat(){
   }
 }
 function closeChat(){ document.getElementById('chatMask').style.display='none'; document.getElementById('chatPanel').style.display='none'; }
-function meSay(t){ document.getElementById('chatMsgs').insertAdjacentHTML('beforeend',`<div class="msg me">${t}</div>`); scrollChat(); }
+function meSay(t){ document.getElementById('chatMsgs').insertAdjacentHTML('beforeend',`<div class="msg me">${esc(t)}</div>`); scrollChat(); }
 function catSay(t){ document.getElementById('chatMsgs').insertAdjacentHTML('beforeend',`<div class="msg cat">${t}</div>`); scrollChat(); }
 function scrollChat(){ const m=document.getElementById('chatMsgs'); m.scrollTop=m.scrollHeight; }
 function sendChat(){
@@ -1437,7 +1451,7 @@ function chatFree(text){
     ...hist.slice(-8)
   ]).then(raw=>{
     catDone();
-    catSay(raw.slice(0,200));
+    catSay(esc(raw.slice(0,200)));
   }).catch(()=>{
     catDone();
     catSay('（线路堵了一下）' + CAT_CHAT_OFFLINE[Math.floor(Math.random()*CAT_CHAT_OFFLINE.length)]);
@@ -1463,12 +1477,12 @@ function showConfirm(tx){
   catSay('我听成这样，对不对喵？');
   document.getElementById('chatMsgs').insertAdjacentHTML('beforeend',
     `<div class="confirm-card">
-      <div class="f"><span>户</span><b>${h?h.name:(tx.householdName?tx.householdName+'（新户，确认时自动建）':'<span style="color:var(--warm)">还没匹配到</span>')}</b></div>
+      <div class="f"><span>户</span><b>${h?esc(h.name):(tx.householdName?esc(tx.householdName)+'（新户，确认时自动建）':'<span style="color:var(--warm)">还没匹配到</span>')}</b></div>
       <div class="f"><span>方向</span><b>${tx.direction==='out'?'我随出':'我收进'}</b></div>
-      <div class="f"><span>事件</span><b>${tx.type}</b></div>
+      <div class="f"><span>事件</span><b>${esc(tx.type)}</b></div>
       <div class="f"><span>日期</span><b>${tx.date||'今天'}</b></div>
       <div class="f"><span>金额</span><b>${tx.amount?fmt(tx.amount):'心意型'}</b></div>
-      <div class="chips" style="margin-top:8px">${DB.households.slice(0,4).map(h=>`<button class="chip" onclick="fixHousehold('${h.id}')">改成${h.name}</button>`).join('')}</div>
+      <div class="chips" style="margin-top:8px">${DB.households.slice(0,4).map(h=>`<button class="chip" onclick="fixHousehold('${h.id}')">改成${esc(h.name)}</button>`).join('')}</div>
       <div class="rowflex"><button class="btn ghost small" onclick="catSay('那算了喵。');pendingChatTx=null;">不对，算了</button>
       <button class="btn small" onclick="confirmChatTx()">没错，记上</button></div>
     </div>`);
@@ -1486,7 +1500,7 @@ function confirmChatTx(){
   }
   if(!hid){ catSay('这笔记到哪一户呀？点上面的户名按钮选一个喵。'); return; }
   DB.transactions.push({id:uid('t_'),householdId:hid,direction:t.direction,type:t.type,
-    date:t.date||new Date().toISOString().slice(0,10),lunar:t.lunar,kind:t.kind,amount:t.amount,gifts:t.gifts,
+    date:t.date||todayStr(),lunar:t.lunar,kind:t.kind,amount:t.amount,gifts:t.gifts,
     handler:t.handler,counterpart:t.counterpart,note:t.note,createdAt:Date.now()});
   const foodMsg = txFood(); save(); renderHome();
   if(document.getElementById('view-cat').classList.contains('active')) renderCat();
@@ -1497,14 +1511,14 @@ function answerReturn(text){
   if(!h){ catSay('说说是哪一户嘛，比如「张家该回多少礼」？'); return; }
   const red = DB.transactions.filter(t=>t.householdId===h.id&&t.direction==='in'&&EVENT_META[t.type]&&EVENT_META[t.type].cat==='red')
     .sort((a,b)=>b.date.localeCompare(a.date))[0];
-  if(!red){ catSay(`「${h.name}」还没有随给我们的红事记录，按行情随就好，喵。`); return; }
+  if(!red){ catSay(`「${esc(h.name)}」还没有随给我们的红事记录，按行情随就好，喵。`); return; }
   const yrs = new Date().getFullYear()-parseInt(red.date.slice(0,4));
   const base = Math.round(red.amount*(1+DB.settings.inflationRate*Math.max(yrs,0)));
-  catSay(`「${h.name}」${red.date} 的「${red.type}」随了我们 <b>${fmt(red.amount)}</b>，隔了 ${yrs} 年。<br>建议回 <b>${fmt(base)} ~ ${fmt(Math.round(base*1.15/10)*10)}</b>，宁多勿少喵！<br>要换实物的话，去「AI 换物」挑等价不同品类的~`);
+  catSay(`「${esc(h.name)}」${red.date} 的「${esc(red.type)}」随了我们 <b>${fmt(red.amount)}</b>，隔了 ${yrs} 年。<br>建议回 <b>${fmt(base)} ~ ${fmt(Math.round(base*1.15/10)*10)}</b>，宁多勿少喵！<br>要换实物的话，去「AI 换物」挑等价不同品类的~`);
 }
 
 /* ================= 猫窝模块 ================= */
-const todayStr = () => new Date().toISOString().slice(0,10);
+const todayStr = () => localDateStr();
 function ensureCat(){
   if(!DB.cat){ DB.cat = { food:DB.settings.feed||0, fed:0, lastFed:Date.now(),
     streak:0, lastTxDate:null, daily:{date:todayStr(),earned:0} }; save(); }
@@ -1522,7 +1536,7 @@ function addFood(n, capDaily){
 function bumpStreak(){
   const c = DB.cat, t = todayStr();
   if(c.lastTxDate === t) return c.streak||1;
-  const y = new Date(Date.now()-86400000).toISOString().slice(0,10);
+  const y = localDateStr(new Date(Date.now()-86400000));
   c.streak = (c.lastTxDate===y) ? (c.streak||0)+1 : 1;
   c.lastTxDate = t;
   return c.streak;
@@ -1637,8 +1651,8 @@ function parseAiTx(raw){
     const kind = j.kind==='gift'?'gift':'cash';
     const d = /^\d{4}-\d{2}-\d{2}$/.test(j.date||'') ? j.date : todayStr();
     return { householdId:hid, householdName:hname||null, direction:j.direction==='in'?'in':'out',
-      type:EVENT_META[j.type]?j.type:'答谢', date:d, amount:Math.round(Number(j.amount))||0,
-      kind, gifts:(kind==='gift'&&j.giftName)?[{name:j.giftName,value:j.giftValue?Math.round(Number(j.giftValue)):null}]:[],
+      type:EVENT_META[j.type]?j.type:'答谢', date:d, amount:Math.round(Number(j.amount)*100)/100||0,
+      kind, gifts:(kind==='gift'&&j.giftName)?[{name:j.giftName,value:j.giftValue?Math.round(Number(j.giftValue)*100)/100:null}]:[],
       lunar:null, handler:DB.settings.members[0], counterpart:'', note:'账房猫记录' };
   }catch(e){ return null; }
 }
@@ -1649,7 +1663,7 @@ function renderSettings(){
   document.getElementById('setName').value = DB.settings.bookName;
   document.getElementById('aiKey').value = DB.settings.aiKey||'';
   updateAiStatus();
-  document.getElementById('memberChips').innerHTML = DB.settings.members.map(m=>`<span class="pill">${m} <b style="cursor:pointer" onclick="delMember('${m}')">×</b></span>`).join('');
+  document.getElementById('memberChips').innerHTML = DB.settings.members.map((m,i)=>`<span class="pill">${esc(m)} <b style="cursor:pointer" onclick="delMember(${i})">×</b></span>`).join('');
 }
 function saveSettings(){
   DB.settings.bookName = document.getElementById('setName').value.trim()||DB.settings.bookName;
@@ -1660,7 +1674,7 @@ function addMember(){
   if(!v) return;
   DB.settings.members.push(v); save(); renderSettings(); document.getElementById('newMember').value=''; toast('成员 +1');
 }
-function delMember(m){ DB.settings.members = DB.settings.members.filter(x=>x!==m); save(); renderSettings(); }
+function delMember(i){ DB.settings.members = DB.settings.members.filter((x,idx)=>idx!==i); save(); renderSettings(); }
 function saveAiKey(){ DB.settings.aiKey = document.getElementById('aiKey').value.trim(); save(); updateAiStatus();
   toast(DB.settings.aiKey?'Key 已保存，账房猫连上真 AI 啦':'已清除 Key，回到演示模式'); }
 function updateAiStatus(){
@@ -1669,15 +1683,23 @@ function updateAiStatus(){
 }
 function exportData(){
   const a=document.createElement('a');
-  a.download='renqing-backup-'+new Date().toISOString().slice(0,10)+'.json';
-  a.href='data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(DB,null,2));
-  a.click(); toast('导出成功');
+  a.download='renqing-backup-'+localDateStr()+'.json';
+  const clean = JSON.parse(JSON.stringify(DB));
+  if(clean.settings) clean.settings.aiKey='';
+  a.href='data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(clean,null,2));
+  a.click(); toast('导出成功（不含 API Key）');
 }
 function importData(inp){
   const f=inp.files[0]; if(!f) return;
   const r=new FileReader();
-  r.onload=()=>{ try{ const d=JSON.parse(r.result); if(!d.households||!d.transactions) throw 0;
-    DB=d; save(); boot(); toast('导入成功'); }catch(e){ toast('文件不对喵'); } };
+  r.onload=()=>{ try{
+    const d=JSON.parse(r.result);
+    const ok = d && typeof d==='object'
+      && Array.isArray(d.households) && Array.isArray(d.transactions)
+      && Array.isArray(d.reminders) && d.settings && typeof d.settings==='object';
+    if(!ok) throw 0;
+    DB=d; save(); boot(); toast('导入成功');
+  }catch(e){ toast('文件不对喵，只能导入本软件导出的备份 JSON'); } };
   r.readAsText(f); inp.value='';
 }
 async function resetAll(){
