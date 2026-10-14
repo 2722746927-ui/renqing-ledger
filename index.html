@@ -450,11 +450,11 @@
   <div id="exPane2" style="display:none">
     <div class="card">
       <label>送给谁</label>
-      <select id="gTo">
-        <option>长辈亲戚</option><option>朋友</option><option>同事</option><option>领导</option><option>邻居</option>
+      <select id="gTo" onchange="doGiftIdea()">
+        <option>长辈亲戚</option><option>朋友</option><option>同事</option><option>领导</option><option>邻居</option><option>同学</option>
       </select>
       <label>场合</label>
-      <select id="gOcc">
+      <select id="gOcc" onchange="doGiftIdea()">
         <option>婚礼</option><option>满月/百日</option><option>乔迁</option><option>探病</option><option>节令送礼</option><option>日常答谢</option>
       </select>
       <label>预算（元）</label>
