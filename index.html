@@ -710,7 +710,12 @@ const GIFT_LIBRARY = [
   {cat:'水果',name:'高端水果篮',lo:80,hi:250,occ:['探病','日常答谢','邻居']},
   {cat:'零食',name:'坚果大礼盒',lo:80,hi:220,occ:['节令送礼','朋友','邻居']},
   {cat:'鲜花',name:'康乃馨花束',lo:60,hi:200,occ:['探病','长辈亲戚']},
-  {cat:'文创',name:'紫砂杯套装',lo:150,hi:600,occ:['领导','长辈亲戚','日常答谢']}
+  {cat:'文创',name:'紫砂杯套装',lo:150,hi:600,occ:['领导','长辈亲戚','日常答谢']},
+  {cat:'酒水',name:'茅台/五粮液单瓶',lo:2000,hi:5000,occ:['婚礼','领导','长辈亲戚']},
+  {cat:'滋补',name:'冬虫夏草礼盒',lo:2000,hi:8000,occ:['长辈亲戚','探病','领导']},
+  {cat:'金饰',name:'金饰/金条',lo:3000,hi:10000,occ:['婚礼','满月/百日','长辈亲戚']},
+  {cat:'数码',name:'高端数码礼品',lo:1000,hi:5000,occ:['领导','乔迁','婚礼']},
+  {cat:'家电',name:'高端家电',lo:1000,hi:6000,occ:['乔迁','婚礼','长辈亲戚']}
 ];
 const RELATION_LIST = ['亲戚','朋友','同事','同学','邻居','其他'];
 const FESTIVAL_SEED = [
@@ -1336,7 +1341,7 @@ async function doExchange(){
     try{
       const raw = await glmCall([
         {role:'system',content:'你是中式人情往来的送礼参谋。只输出一个JSON数组，禁止任何其他文字。格式：[{"name":"礼品名","lo":最低价,"hi":最高价}]'},
-        {role:'user',content:`收到「${cat}」类礼品，价值约${val}元。推荐3个等值但品类完全不同的回礼，价格区间贴合国内人情行情。`}
+        {role:'user',content:`收到「${cat}」类礼品，价值约${val}元。推荐3个品类完全不同的等值回礼。要求：每个回礼的价格区间必须落在${Math.round(val*0.8)}~${Math.round(val*1.2)}元之间，不得偏离太多。贴合国内人情行情。`}
       ]);
       const arr = JSON.parse(raw.match(/\[[\s\S]*\]/)[0]).slice(0,3);
       out.innerHTML = head + arr.map(g=>`<div class="suggest-item"><span class="pill">AI荐</span><span>${g.name}</span><span class="pr">${fmt(g.lo)}~${fmt(g.hi)}</span></div>`).join('');
