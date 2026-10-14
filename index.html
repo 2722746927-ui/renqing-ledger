@@ -464,13 +464,15 @@
   <div id="exPane2" style="display:none">
     <div class="card">
       <label>送给谁</label>
-      <select id="gTo" onchange="doGiftIdea()">
-        <option>长辈亲戚</option><option>朋友</option><option>同事</option><option>领导</option><option>邻居</option><option>同学</option>
-      </select>
+      <input id="gTo" list="gToList" value="长辈亲戚" autocomplete="off" oninput="doGiftIdea()">
+      <datalist id="gToList">
+        <option value="长辈亲戚"><option value="朋友"><option value="同事"><option value="领导"><option value="邻居"><option value="同学">
+      </datalist>
       <label>场合</label>
-      <select id="gOcc" onchange="doGiftIdea()">
-        <option>婚礼</option><option>满月/百日</option><option>乔迁</option><option>探病</option><option>节令送礼</option><option>日常答谢</option>
-      </select>
+      <input id="gOcc" list="gOccList" value="婚礼" autocomplete="off" oninput="doGiftIdea()">
+      <datalist id="gOccList">
+        <option value="婚礼"><option value="满月/百日"><option value="乔迁"><option value="探病"><option value="节令送礼"><option value="日常答谢">
+      </datalist>
       <label>预算（元）</label>
       <input type="number" id="gBudget" placeholder="500" oninput="doGiftIdea()">
       <div id="giftIdeaOut"></div>
@@ -804,6 +806,30 @@ const GIFT_LIBRARY = [
   {cat:'珠宝',name:'高端珠宝首饰',lo:10000,hi:100000,occ:['婚礼','满月/百日','长辈亲戚']},
   {cat:'礼券',name:'高端购物卡/礼券',lo:5000,hi:100000,occ:['婚礼','领导','长辈亲戚']}
 ];
+// 民间俗称 → 库内品类，用于换物时识别"收到的是什么"（匹配按关键词长度从长到短）
+const CAT_ALIASES = {
+  茶饮:['龙井','普洱','大红袍','铁观音','毛尖','乌龙茶','红茶','绿茶','白茶','花茶','茶叶','茶'],
+  酒水:['五粮液','剑南春','茅台酒','茅台','洋河','汾酒','泸州','红酒','葡萄酒','白酒','洋酒','啤酒','酒'],
+  滋补:['燕窝','海参','鲍鱼','虫草','西洋参','人参','阿胶','石斛','枸杞','蜂蜜','滋补'],
+  保健:['按摩仪','足浴盆','血压计','颈椎','肩颈','按摩枕','保健','养生'],
+  母婴:['奶粉','纸尿裤','尿不湿','婴儿车','宝宝','婴儿','母婴','童装','辅食','满月礼'],
+  家纺:['四件套','蚕丝被','羊毛被','羽绒被','毛毯','床品','羊绒围巾','丝绸','围巾'],
+  厨具:['功夫茶具','茶具','不粘锅','炒锅','刀具','餐具','厨具','锅具'],
+  家电:['扫地机器人','扫地机','空气炸锅','电饭煲','电磁炉','小家电','电器'],
+  水果:['进口水果','水果篮','果篮','水果','橙子','苹果'],
+  糕点:['糕点','蛋糕','点心','桃酥'],
+  零食:['坚果','零食','炒货'],
+  鲜花:['康乃馨','百合花束','玫瑰花束','玫瑰','百合','花束','鲜花'],
+  绿植:['发财树','盆栽','绿植','多肉','兰花'],
+  文创:['装饰画','花瓶','文创','手账','书签'],
+  数码:['蓝牙耳机','耳机','蓝牙音箱','充电宝','平板','数码'],
+  办公:['钢笔','笔记本礼盒','台历','办公'],
+  节令:['月饼','粽子','年货','元宵','年糕','大闸蟹','螃蟹'],
+  金饰:['黄金','金条','金镯','金锁','金饰','金吊坠'],
+  奢侈品:['名牌包','大牌包','奢侈品','名牌'],
+  珠宝:['翡翠','项链','戒指','手链','珠宝','玉石'],
+  礼券:['购物卡','提货卡','消费卡','储值卡','加油卡','红包','礼券','代金券']
+};
 const RELATION_LIST = ['亲戚','朋友','同事','同学','邻居','其他'];
 const FESTIVAL_SEED = [
   {label:'春节（压岁钱季）',date:'2027-02-06',householdId:null,kind:'festival'},
@@ -829,12 +855,22 @@ function uid(p){ return p + Date.now().toString(36) + Math.random().toString(36)
 function save(){ DB.updatedAt = new Date().toISOString(); localStorage.setItem(LS_KEY, JSON.stringify(DB)); }
 function load(){ try { return JSON.parse(localStorage.getItem(LS_KEY)); } catch(e){ return null; } }
 
+// 用户自填的选项沉淀：事件类型/经手人/关系，下次还能从候选里选
+function rememberCustom(listKey, val, presets){
+  const v = String(val||'').trim();
+  if(!v) return;
+  if(presets && presets.includes(v)) return; // 已在内置选项里，不必重复存
+  if(!Array.isArray(DB.settings[listKey])) DB.settings[listKey] = [];
+  if(!DB.settings[listKey].includes(v)) DB.settings[listKey].push(v);
+}
+function allEventTypes(){ return [...new Set([...Object.keys(EVENT_META), ...DB.settings.eventTypes])]; }
+
 function seed(){
   const h1=uid('h_'), h2=uid('h_'), h3=uid('h_'), h4=uid('h_'), h5=uid('h_');
   DB = {
     version:1, updatedAt:new Date().toISOString(),
     settings:{ bookName:'我家的人情账', members:['我','我爸','我妈'], inflationRate:0.03,
-      aiKey:'', feed:14 },
+      aiKey:'', feed:14, relations:RELATION_LIST.slice(), eventTypes:[] },
     households:[
       {id:h1,name:'张建国家',members:['张建国','王丽','张小雨'],relation:'亲戚',closeness:1,note:'二舅家',keyDates:[{label:'二舅妈生日',lunar:'八月十五'}],createdAt:Date.now()},
       {id:h2,name:'李秀兰家',members:['李秀兰','老周'],relation:'邻居',closeness:2,note:'对门老邻居',keyDates:[],createdAt:Date.now()},
@@ -908,7 +944,7 @@ function renderFeed(){
 function openAdd(){
   const sel = document.getElementById('addHousehold');
   sel.innerHTML = DB.households.map(h=>`<option value="${h.id}">${esc(h.name)}</option>`).join('');
-  document.getElementById('eventTypeList').innerHTML = Object.keys(EVENT_META).map(k=>`<option value="${esc(k)}">`).join('');
+  document.getElementById('eventTypeList').innerHTML = allEventTypes().map(k=>`<option value="${esc(k)}">`).join('');
   document.getElementById('handlerList').innerHTML = DB.settings.members.map(m=>`<option value="${esc(m)}">`).join('');
   document.getElementById('addType').value='';
   document.getElementById('addHandler').value = DB.settings.members[0]||'';
@@ -947,6 +983,8 @@ function saveTx(){
     t.gifts=[g]; t.amount = g.value||0;
   }
   DB.transactions.push(t);
+  rememberCustom('eventTypes', type, Object.keys(EVENT_META));
+  rememberCustom('members', t.handler);
   const foodMsg = txFood();
   save(); renderHome();
   const h = DB.households.find(x=>x.id===hid);
@@ -1037,7 +1075,7 @@ function renderSuggest(h){
       <span class="muted">规则：红事≥上次，随行情上浮${Math.round(DB.settings.inflationRate*100)}%/年；宁多勿少。</span></p>`;
   } else {
     const last = theirIn[0];
-    html += `<p style="font-size:13.5px;line-height:1.7">对方最近红事（${last.type}）随了我们 <b>${fmt(last.amount)}</b>。<br>
+    html += `<p style="font-size:13.5px;line-height:1.7">对方最近红事（${esc(last.type)}）随了我们 <b>${fmt(last.amount)}</b>。<br>
       建议回礼：<b style="color:var(--accent-ink);font-size:16px">${fmt(last.amount)} ~ ${fmt(Math.round(last.amount*1.15/10)*10)}</b><br>
       <span class="muted">规则：至少等额，宁多勿少。</span></p>`;
   }
@@ -1046,7 +1084,7 @@ function renderSuggest(h){
     const g = lastIn.gifts[0];
     html += `<div style="margin-top:10px;display:flex;align-items:center;gap:8px">
       <span class="muted">上次收他家：${esc(g.name)}${g.value?(' '+fmt(g.value)):'（心意）'}</span>
-      <button class="btn small" data-n="${esc(g.name)}" onclick="prefillExchange(this.dataset.n,${g.value||200})">AI 换物回礼</button></div>`;
+      <button class="btn small" data-n="${esc(g.name)}" onclick="prefillExchange(this.dataset.n,${g.value||0})">AI 换物回礼</button></div>`;
   }
   box.innerHTML = html;
 }
@@ -1104,7 +1142,7 @@ function exportHouseholdCsv(){
 }
 function editTx(id){
   const t = DB.transactions.find(x=>x.id===id); if(!t) return;
-  document.getElementById('eventTypeList').innerHTML = Object.keys(EVENT_META).map(k=>`<option value="${esc(k)}">`).join('');
+  document.getElementById('eventTypeList').innerHTML = allEventTypes().map(k=>`<option value="${esc(k)}">`).join('');
   document.getElementById('handlerList').innerHTML = DB.settings.members.map(m=>`<option value="${esc(m)}">`).join('');
   const g = t.gifts[0]||{name:'',value:null};
   openModal(`<h3>编辑这笔往来</h3>
@@ -1124,7 +1162,7 @@ function editTx(id){
     <label>备注</label><input id="mNote" value="${esc(t.note||'')}">
     <div class="rowflex" style="margin-top:10px">
       <button class="btn ghost" onclick="closeModal()">取消</button>
-      <button class="btn ghost" style="color:var(--warm)" onclick="delTx('${t.id}')">删除</button>
+      <button class="btn ghost" style="color:var(--warm)" onclick="delTx('${t.id}',1)">删除</button>
       <button class="btn" onclick="saveTxEdit('${t.id}')">保存</button>
     </div>`);
 }
@@ -1158,11 +1196,13 @@ function saveTxEdit(id){
   t.handler = document.getElementById('mHandler').value;
   t.counterpart = document.getElementById('mCounterpart').value.trim();
   t.note = document.getElementById('mNote').value.trim();
+  rememberCustom('eventTypes', t.type, Object.keys(EVENT_META));
+  rememberCustom('members', t.handler);
   save(); closeModal(); renderHome(); openH(currentH); toast('改好了，喵');
 }
-function delTx(id){
+function delTx(id, fromEdit){
   openModal(`<h3>删除这笔往来？</h3><p class="muted" style="margin-bottom:14px">删除后不可恢复，喵。</p>
-    <div class="rowflex"><button class="btn ghost" onclick="closeModal()">手滑了</button>
+    <div class="rowflex"><button class="btn ghost" onclick="${fromEdit?`closeModal();editTx('${id}')`:'closeModal()'}">手滑了</button>
     <button class="btn" style="background:var(--warm)" onclick="doDelTx('${id}')">删除</button></div>`);
 }
 function doDelTx(id){
@@ -1172,11 +1212,11 @@ function doDelTx(id){
 function editHousehold(hid){
   const h = hid ? DB.households.find(x=>x.id===hid) : null;
   openModal(`<h3>${h?'编辑户':'新建户'}</h3>
-    <label>户名 *</label><input id="mName" value="${h?h.name:''}" placeholder="如：张建国家">
-    <label>关系</label><input id="mRel" list="relationList" value="${h?esc(h.relation):''}" placeholder="如：亲戚、朋友" autocomplete="off"><datalist id="relationList">${RELATION_LIST.map(r=>`<option value="${esc(r)}">`).join('')}</datalist>
+    <label>户名 *</label><input id="mName" value="${h?esc(h.name):''}" placeholder="如：张建国家">
+    <label>关系</label><input id="mRel" list="relationList" value="${h?esc(h.relation):''}" placeholder="如：亲戚、朋友" autocomplete="off"><datalist id="relationList">${DB.settings.relations.map(r=>`<option value="${esc(r)}">`).join('')}</datalist>
     <label>亲疏（1最亲）</label><select id="mClose">${[1,2,3].map(n=>`<option ${h&&h.closeness===n?'selected':''}>${n}</option>`).join('')}</select>
-    <label>对方家庭成员（逗号分隔）</label><input id="mMembers" value="${h?h.members.join(','):''}" placeholder="张建国,王丽">
-    <label>备注</label><input id="mNote" value="${h?h.note:''}">
+    <label>对方家庭成员（逗号分隔）</label><input id="mMembers" value="${h?esc(h.members.join(',')):''}" placeholder="张建国,王丽">
+    <label>备注</label><input id="mNote" value="${h?esc(h.note):''}">
     <div class="rowflex" style="margin-top:10px"><button class="btn ghost" onclick="closeModal()">取消</button>
     <button class="btn" onclick="saveHousehold('${h?h.id:''}')">保存</button></div>`);
 }
@@ -1189,6 +1229,7 @@ function saveHousehold(hid){
     note:document.getElementById('mNote').value };
   if(hid){ Object.assign(DB.households.find(x=>x.id===hid), data); }
   else { DB.households.push({id:uid('h_'),keyDates:[],createdAt:Date.now(),...data}); }
+  rememberCustom('relations', data.relation);
   save(); closeModal(); renderHouseholds(); renderHome(); toast('喵~ 户档案更新啦');
 }
 function delHousehold(hid){
@@ -1204,7 +1245,7 @@ function delHousehold(hid){
 }
 function quickAddHousehold(){
   openModal(`<h3>新建一户</h3><label>户名 *</label><input id="mName" placeholder="如：张建国家">
-    <label>关系</label><input id="mRel" list="relationList" placeholder="如：亲戚、朋友" autocomplete="off"><datalist id="relationList">${RELATION_LIST.map(r=>`<option value="${esc(r)}">`).join('')}</datalist>
+    <label>关系</label><input id="mRel" list="relationList" placeholder="如：亲戚、朋友" autocomplete="off"><datalist id="relationList">${DB.settings.relations.map(r=>`<option value="${esc(r)}">`).join('')}</datalist>
     <div class="rowflex" style="margin-top:10px"><button class="btn ghost" onclick="closeModal()">取消</button>
     <button class="btn" onclick="doQuickAdd()">建好</button></div>`);
 }
@@ -1212,9 +1253,11 @@ function doQuickAdd(){
   const name = document.getElementById('mName').value.trim();
   if(!name){ toast('户名要填喵'); return; }
   const h = {id:uid('h_'),name,relation:document.getElementById('mRel').value,closeness:2,members:[],note:'',keyDates:[],createdAt:Date.now()};
-  DB.households.push(h); save(); closeModal();
+  DB.households.push(h);
+  rememberCustom('relations', h.relation);
+  save(); closeModal();
   const sel=document.getElementById('addHousehold');
-  sel.innerHTML = DB.households.map(x=>`<option value="${x.id}" ${x.id===h.id?'selected':''}>${x.name}</option>`).join('');
+  sel.innerHTML = DB.households.map(x=>`<option value="${x.id}" ${x.id===h.id?'selected':''}>${esc(x.name)}</option>`).join('');
   toast('建好了，已帮你选上');
 }
 
@@ -1236,6 +1279,7 @@ function switchTab(t){
 function fileToDataUrl(f, cb){ const r=new FileReader(); r.onload=()=>cb(r.result); r.readAsDataURL(f); }
 function bookPicked(inp){
   const f = inp.files[0]; if(!f) return;
+  inp.value=''; // 允许再次选择同一个文件
   const img = document.getElementById('bookPreview');
   img.src = URL.createObjectURL(f); img.style.display='block';
   fileToDataUrl(f, url => recognizeBook(true, url));
@@ -1315,6 +1359,7 @@ function saveBook(n){
 }
 function invitePicked(inp){
   const f = inp.files[0]; if(!f) return;
+  inp.value=''; // 允许再次选择同一个文件
   const img = document.getElementById('invitePreview');
   img.src = URL.createObjectURL(f); img.style.display='block';
   fileToDataUrl(f, url => recognizeInvite(true, url));
@@ -1405,7 +1450,9 @@ function exTab(n){
 }
 function prefillExchange(name,val){ exSrcCat=name; exSrcVal=val; openExchange();
   document.getElementById('rxCat').value=name;
-  document.getElementById('rxValue').value=val; doExchange(); toast('喵~ 按这价帮你换'); }
+  document.getElementById('rxValue').value = val||'';
+  if(val) doExchange();
+  toast(val?'喵~ 按这价帮你换':'喵~ 再补个这份礼的估值') }
 function pickFromHistory(){
   const ins = DB.transactions.filter(t=>t.direction==='in').sort((a,b)=>b.date.localeCompare(a.date));
   if(!ins.length){ toast('还没有收礼记录喵'); return; }
@@ -1413,16 +1460,36 @@ function pickFromHistory(){
     const h=DB.households.find(x=>x.id===t.householdId);
     const g=t.gifts[0]||{};
     const nm = g.name||t.type;
-    return `<div class="suggest-item" style="cursor:pointer" data-n="${esc(nm)}" onclick="closeModal();prefillExchange(this.dataset.n,${t.amount||200})">
+    return `<div class="suggest-item" style="cursor:pointer" data-n="${esc(nm)}" onclick="closeModal();prefillExchange(this.dataset.n,${t.amount||0})">
       <span>${h?esc(h.name):'??'} · ${esc(t.type)}</span><span class="pr">${t.amount?fmt(t.amount):'心意'}</span></div>`;
   }).join(''));
 }
-async function doExchange(){
-  const cat = document.getElementById('rxCat').value;
+// 把用户填的礼品名识别成库里的品类：品类名/条目名精确命中 → 俗称词典（长词优先）
+function detectGiftCat(raw){
+  raw = String(raw||'').trim();
+  if(!raw) return '';
+  if(GIFT_LIBRARY.some(g=>g.cat===raw)) return raw;
+  const exact = GIFT_LIBRARY.find(g=>g.name===raw);
+  if(exact) return exact.cat;
+  const pairs = [];
+  Object.entries(CAT_ALIASES).forEach(([c,ks])=>ks.forEach(k=>pairs.push([k,c])));
+  pairs.sort((a,b)=>b[0].length-a[0].length); // 长关键词优先："茶具"胜过单字"茶"
+  const eq = pairs.find(([k])=>raw===k);
+  if(eq) return eq[1];
+  const hit = pairs.find(([k])=>raw.includes(k));
+  return hit ? hit[1] : raw;
+}
+function debounce(fn, ms){ let timer; return (...args)=>{ clearTimeout(timer); timer=setTimeout(()=>fn(...args), ms); }; }
+let _exReq = 0;
+async function _doExchange(){
+  const rawCat = document.getElementById('rxCat').value.trim();
   const val = parseFloat(document.getElementById('rxValue').value)||0;
   const out = document.getElementById('exchangeOut');
+  const myReq = ++_exReq;
   if(!val){ out.innerHTML='<p class="muted" style="padding:10px 0">填个价值，喵~ 我来推荐等价不同品类</p>'; return; }
-  const head = '<p class="muted" style="margin:6px 0">收到「'+cat+' · '+fmt(val)+'」，账房猫推荐回这些：</p>';
+  // 输入框里可能填的是品类（酒水）也可能是历史记录里的礼品名（五粮液/茶叶礼盒），统一识别成品类用于排除
+  const cat = detectGiftCat(rawCat);
+  const head = '<p class="muted" style="margin:6px 0">'+(rawCat?('收到「'+esc(rawCat)+' · '+fmt(val)+'」'):('收到价值'+fmt(val)+'的礼品'))+'，账房猫推荐回这些：</p>';
   if(aiReady()){
     out.innerHTML = '<p class="muted" style="padding:10px 0">账房猫正在翻礼单……</p>';
     try{
@@ -1430,22 +1497,26 @@ async function doExchange(){
         {role:'system',content:'你是中式人情往来的送礼参谋。只输出一个JSON数组，禁止任何其他文字。格式：[{"name":"礼品名","lo":最低价,"hi":最高价}]'},
         {role:'user',content:`收到「${cat}」类礼品，价值约${val}元。推荐3个品类完全不同的等值回礼。要求：每个回礼的价格区间必须落在${Math.round(val*0.8)}~${Math.round(val*1.2)}元之间，不得偏离太多。贴合国内人情行情。`}
       ]);
+      if(myReq!==_exReq) return;
       const arr = JSON.parse(raw.match(/\[[\s\S]*\]/)[0]).slice(0,3);
-      out.innerHTML = head + arr.map(g=>`<div class="suggest-item"><span class="pill">AI荐</span><span>${g.name}</span><span class="pr">${fmt(g.lo)}~${fmt(g.hi)}</span></div>`).join('');
+      out.innerHTML = head + arr.map(g=>`<div class="suggest-item"><span class="pill">AI荐</span><span>${esc(g.name)}</span><span class="pr">${fmt(g.lo)}~${fmt(g.hi)}</span></div>`).join('');
       return;
-    }catch(e){ toast('AI没连上，用本地礼单喵'); }
+    }catch(e){ if(myReq!==_exReq) return; toast('AI没连上，用本地礼单喵'); }
   }
-  const pool = GIFT_LIBRARY.filter(g=>g.cat!==cat);
+  const pool = GIFT_LIBRARY.filter(g=>g.cat!==cat && g.name!==rawCat);
   const picks = pool.map(g=>({...g,fit:Math.abs((g.lo+g.hi)/2-val)})).sort((a,b)=>a.fit-b.fit).slice(0,3);
   const overMax = val > 100000;
   out.innerHTML = head
     + (overMax?'<p class="muted" style="padding:4px 0;font-size:12px;color:#e88">这个价位超出本地礼单上限，以下为最接近的参考，建议填API Key让AI参谋更精准的</p>':'')
     + picks.map(g=>`<div class="suggest-item"><span class="pill">${g.cat}</span><span>${g.name}</span><span class="pr">${fmt(g.lo)}~${fmt(g.hi)}</span></div>`).join('');
 }
-async function doGiftIdea(){
-  const to = document.getElementById('gTo').value, occ = document.getElementById('gOcc').value;
+const doExchange = debounce(_doExchange, 350);
+let _giReq = 0;
+async function _doGiftIdea(){
+  const to = document.getElementById('gTo').value.trim(), occ = document.getElementById('gOcc').value.trim();
   const bud = parseFloat(document.getElementById('gBudget').value)||0;
   const out = document.getElementById('giftIdeaOut');
+  const myReq = ++_giReq;
   if(!bud){ out.innerHTML='<p class="muted" style="padding:10px 0">填个预算，喵~</p>'; return; }
   if(aiReady()){
     out.innerHTML='<p class="muted" style="padding:10px 0">账房猫正在琢磨送什么……</p>';
@@ -1454,19 +1525,26 @@ async function doGiftIdea(){
         {role:'system',content:'你是中式人情往来的送礼参谋。只输出一个JSON数组，禁止任何其他文字。格式：[{"name":"礼品名","lo":最低价,"hi":最高价}]'},
         {role:'user',content:`送给${to}，场合是${occ}，预算${bud}元。推荐4个适合送给${to}的具体单品（不要宽泛品类名，要具体到产品名如"肩颈按摩仪""龙井茶礼盒"）。价格区间落在${Math.round(bud*0.8)}~${Math.round(bud*1.2)}元之间。不同对象推荐要不同，符合国内人情习惯。`}
       ]);
+      if(myReq!==_giReq) return;
       const arr = JSON.parse(raw.match(/\[[\s\S]*\]/)[0]).slice(0,4);
-      out.innerHTML = '<p class="muted" style="margin:6px 0">'+to+' · '+occ+' · 预算'+fmt(bud)+'，可以考虑：</p>'
-        + arr.map(g=>`<div class="suggest-item"><span class="pill">AI荐</span><span>${g.name}</span><span class="pr">${fmt(g.lo)}~${fmt(g.hi)}</span></div>`).join('');
+      out.innerHTML = '<p class="muted" style="margin:6px 0">'+esc(to)+' · '+esc(occ)+' · 预算'+fmt(bud)+'，可以考虑：</p>'
+        + arr.map(g=>`<div class="suggest-item"><span class="pill">AI荐</span><span>${esc(g.name)}</span><span class="pr">${fmt(g.lo)}~${fmt(g.hi)}</span></div>`).join('');
       return;
-    }catch(e){ toast('AI没连上，用本地礼单喵'); }
+    }catch(e){ if(myReq!==_giReq) return; toast('AI没连上，用本地礼单喵'); }
   }
-  const picks = GIFT_LIBRARY.filter(g=>bud>=g.lo*0.8 && bud<=g.hi*1.4 && (g.occ.includes(occ)||g.occ.includes(to)))
-    .sort((a,b)=>Math.abs((a.lo+a.hi)/2-bud)-Math.abs((b.lo+b.hi)/2-bud)).slice(0,4);
+  const byBudget = g=>bud>=g.lo*0.8 && bud<=g.hi*1.4;
+  // 先按对象/场合匹配；自定义输入匹配不到时，退化为按预算全库通用推荐
+  let picks = GIFT_LIBRARY.filter(g=>byBudget(g) && (g.occ.includes(occ)||g.occ.includes(to)));
+  let generic = false;
+  if(!picks.length){ picks = GIFT_LIBRARY.filter(byBudget); generic = true; }
+  picks = picks.sort((a,b)=>Math.abs((a.lo+a.hi)/2-bud)-Math.abs((b.lo+b.hi)/2-bud)).slice(0,4);
   out.innerHTML = picks.length
-    ? '<p class="muted" style="margin:6px 0">'+to+' · '+occ+' · 预算'+fmt(bud)+'，可以考虑：</p>'
+    ? '<p class="muted" style="margin:6px 0">'+esc(to)+' · '+esc(occ)+' · 预算'+fmt(bud)+'，可以考虑：</p>'
+      + (generic?'<p class="muted" style="padding:2px 0;font-size:12px">本地礼单里没有完全贴合该对象/场合的，先按预算给你挑几款通用的：</p>':'')
       + picks.map(g=>`<div class="suggest-item"><span class="pill">${g.cat}</span><span>${g.name}</span><span class="pr">${fmt(g.lo)}~${fmt(g.hi)}</span></div>`).join('')
-    : '<p class="muted" style="padding:10px 0">这个预算在该场合不太常见，建议往上或往下调一调，喵。</p>';
+    : '<p class="muted" style="padding:10px 0">这个预算在本地礼单里不太常见，建议调一调预算，或填 API Key 让 AI 参谋，喵。</p>';
 }
+const doGiftIdea = debounce(_doGiftIdea, 350);
 
 /* ================= 节日提醒 ================= */
 function renderReminders(){
@@ -1489,7 +1567,7 @@ function editReminder(){
     <div class="chips" style="margin-bottom:10px">${FESTIVAL_PICKS.map((f,i)=>`<span class="chip" onclick="pickFestival(${i})">${f.label}</span>`).join('')}</div>
     <label>事项</label><input id="rTitle" placeholder="如：中秋给大姨送礼">
     <label>日期</label><input type="date" id="rDate">
-    <label>关联户（可选）</label><select id="rH"><option value="">不关联</option>${DB.households.map(h=>`<option value="${h.id}">${h.name}</option>`).join('')}</select>
+    <label>关联户（可选）</label><select id="rH"><option value="">不关联</option>${DB.households.map(h=>`<option value="${h.id}">${esc(h.name)}</option>`).join('')}</select>
     <div class="rowflex" style="margin-top:10px"><button class="btn ghost" onclick="closeModal()">取消</button>
     <button class="btn" onclick="saveReminder()">保存</button></div>`);
 }
@@ -1533,7 +1611,7 @@ function renderStats(){
   const types = Object.entries(byType).sort((a,b)=>b[1]-a[1]).slice(0,6);
   const maxT = Math.max(1,...types.map(x=>x[1]));
   document.getElementById('chartType').innerHTML = types.map(([k,v])=>`
-    <div class="bar-row"><span class="bl">${k}</span><div class="track"><div class="fill" style="width:${v/maxT*100}%"></div></div>
+    <div class="bar-row"><span class="bl">${esc(k)}</span><div class="track"><div class="fill" style="width:${v/maxT*100}%"></div></div>
     <span class="bv">${fmt(v)}</span></div>`).join('') || '<div class="empty">暂无数据</div>';
   const byRel = {};
   DB.transactions.forEach(t=>{
@@ -1543,13 +1621,13 @@ function renderStats(){
   const rels = Object.entries(byRel).sort((a,b)=>b[1]-a[1]);
   const maxR = Math.max(1,...rels.map(x=>x[1]));
   document.getElementById('chartCircle').innerHTML = rels.map(([k,v])=>`
-    <div class="bar-row"><span class="bl">${k}</span><div class="track"><div class="fill green" style="width:${v/maxR*100}%"></div></div>
+    <div class="bar-row"><span class="bl">${esc(k)}</span><div class="track"><div class="fill green" style="width:${v/maxR*100}%"></div></div>
     <span class="bv">${fmt(v)}</span></div>`).join('') || '<div class="empty">暂无数据</div>';
   const rankRows = DB.households.map(h=>({h,...hSums(h.id)}))
     .map(x=>({...x,diff:x.inn-x.out})).sort((a,b)=>a.diff-b.diff);
   const maxAbs = Math.max(1,...rankRows.map(r=>Math.abs(r.diff)));
   document.getElementById('chartRank').innerHTML = rankRows.map((x,i)=>`
-    <div class="bar-row"><span class="bl">${i+1}. ${x.h.name}</span><div class="track">
+    <div class="bar-row"><span class="bl">${i+1}. ${esc(x.h.name)}</span><div class="track">
       <div class="fill ${x.diff>=0?'green':'warm'}" style="width:${Math.abs(x.diff)/maxAbs*100}%"></div></div>
       <span class="bv">${x.diff>=0?'+':''}${fmt(x.diff)}</span></div>`).join('') || '<div class="empty">暂无数据</div>';
 }
@@ -1935,6 +2013,10 @@ function enterApp(){
 function boot(){
   DB = load();
   if(!DB || !DB.settings) seed();
+  // 老数据兼容：自定义关系/事件类型沉淀位
+  if(!Array.isArray(DB.settings.relations)) DB.settings.relations = RELATION_LIST.slice();
+  if(!Array.isArray(DB.settings.eventTypes)) DB.settings.eventTypes = [];
+  if(!Array.isArray(DB.settings.members)) DB.settings.members = ['我'];
   ensureCat();
   enterApp();
 }
