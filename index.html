@@ -119,6 +119,7 @@
   .swipe-row:last-child { border-bottom:none; }
   .swipe-del { position:absolute; right:0; top:0; bottom:0; width:76px; background:var(--warm); color:#fff; display:flex; align-items:center; justify-content:center; gap:3px; font-size:13px; }
   .swipe-content { position:relative; background:var(--card); transition:transform .25s ease; z-index:1; display:flex; align-items:center; gap:12px; padding:13px 14px; cursor:pointer; }
+  .swipe-content.open { transform:translateX(-76px); }
   .tag { flex:none; width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; }
   .tag.out { background:var(--warm-soft); color:var(--warm); }
   .tag.in { background:var(--green-soft); color:var(--green); }
