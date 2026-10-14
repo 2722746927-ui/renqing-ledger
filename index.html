@@ -113,6 +113,8 @@
   .list { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; }
   .list > .row { display:flex; align-items:center; gap:12px; padding:13px 14px; border-bottom:1px solid var(--line); cursor:pointer; }
   .list > .row:last-child { border-bottom:none; }
+  .del-btn { flex:none; cursor:pointer; opacity:.32; padding:4px; display:flex; align-items:center; transition:opacity .15s; }
+  .del-btn:hover { opacity:1; color:var(--warm); }
   .tag { flex:none; width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; }
   .tag.out { background:var(--warm-soft); color:var(--warm); }
   .tag.in { background:var(--green-soft); color:var(--green); }
@@ -909,7 +911,9 @@ function renderTimeline(h){
     return `<div class="row" onclick="editTx('${t.id}')">
       <span class="tag ${t.direction}">${isOut?'出':'收'}</span>
       <div class="info"><p>${esc(t.type)}${t.counterpart?' · '+esc(t.counterpart):''}</p><span>${t.date} · ${esc(giftTxt)} · ${esc(t.handler)}${t.note?' · '+esc(t.note):''}</span></div>
-      <b class="amount ${t.direction}">${isOut?'-':'+'}${fmt(t.amount)}</b></div>`;
+      <b class="amount ${t.direction}">${isOut?'-':'+'}${fmt(t.amount)}</b>
+      <span class="del-btn" onclick="event.stopPropagation();delTx('${t.id}')"><svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M9 3v1H4v2h16V4h-5V3H9zM6 8l1 13h10l1-13H6zm3 2v9h1v-9H9zm3 0v9h1v-9h-1zm3 0v9h1v-9h-1z"/></svg></span>
+      </div>`;
   }).join('') || '<div class="empty">还没有往来</div>';
 }
 let hdAsTable = false;
