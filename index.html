@@ -715,7 +715,11 @@ const GIFT_LIBRARY = [
   {cat:'滋补',name:'冬虫夏草礼盒',lo:2000,hi:8000,occ:['长辈亲戚','探病','领导']},
   {cat:'金饰',name:'金饰/金条',lo:3000,hi:10000,occ:['婚礼','满月/百日','长辈亲戚']},
   {cat:'数码',name:'高端数码礼品',lo:1000,hi:5000,occ:['领导','乔迁','婚礼']},
-  {cat:'家电',name:'高端家电',lo:1000,hi:6000,occ:['乔迁','婚礼','长辈亲戚']}
+  {cat:'家电',name:'高端家电',lo:1000,hi:6000,occ:['乔迁','婚礼','长辈亲戚']},
+  {cat:'奢侈品',name:'名牌包/腕表',lo:10000,hi:50000,occ:['婚礼','领导','长辈亲戚']},
+  {cat:'珠宝',name:'高端珠宝首饰',lo:10000,hi:100000,occ:['婚礼','满月/百日','长辈亲戚']},
+  {cat:'家电',name:'家电全套',lo:10000,hi:50000,occ:['乔迁','婚礼']},
+  {cat:'礼券',name:'高端购物卡/礼券',lo:5000,hi:100000,occ:['婚礼','领导','长辈亲戚']}
 ];
 const RELATION_LIST = ['亲戚','朋友','同事','同学','邻居','其他'];
 const FESTIVAL_SEED = [
@@ -1350,7 +1354,9 @@ async function doExchange(){
   }
   const pool = GIFT_LIBRARY.filter(g=>g.cat!==cat);
   const picks = pool.map(g=>({...g,fit:Math.abs((g.lo+g.hi)/2-val)})).sort((a,b)=>a.fit-b.fit).slice(0,3);
+  const overMax = val > 100000;
   out.innerHTML = head
+    + (overMax?'<p class="muted" style="padding:4px 0;font-size:12px;color:#e88">这个价位超出本地礼单上限，以下为最接近的参考，建议填API Key让AI参谋更精准的</p>':'')
     + picks.map(g=>`<div class="suggest-item"><span class="pill">${g.cat}</span><span>${g.name}</span><span class="pr">${fmt(g.lo)}~${fmt(g.hi)}</span></div>`).join('');
 }
 async function doGiftIdea(){
