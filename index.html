@@ -438,7 +438,8 @@
     <div class="card">
       <p class="muted" style="margin-bottom:10px">收到什么礼，就回等价但不同品类的心意。喵~</p>
       <label>收到的礼品品类</label>
-      <select id="rxCat"></select>
+      <input id="rxCat" list="rxCatList" placeholder="如：烟酒、水果" autocomplete="off" oninput="doExchange()">
+      <datalist id="rxCatList"></datalist>
       <label>对方随 / 送的价值（元）</label>
       <input type="number" id="rxValue" placeholder="300" oninput="doExchange()">
       <button class="btn ghost small" style="margin-bottom:12px" onclick="pickFromHistory()">从往来记录里选一收</button>
@@ -1300,7 +1301,8 @@ function saveInvite(){
 let exSrcCat = null, exSrcVal = null;
 function openExchange(){
   const cats = [...new Set(GIFT_LIBRARY.map(g=>g.cat))];
-  document.getElementById('rxCat').innerHTML = cats.map(c=>`<option>${c}</option>`).join('') + '<option>编辑</option>';
+  document.getElementById('rxCatList').innerHTML = cats.map(c=>`<option value="${esc(c)}">`).join('');
+  document.getElementById('rxCat').value='';
   doExchange(); exTab(1); go('view-exchange');
 }
 function exTab(n){
@@ -1310,7 +1312,7 @@ function exTab(n){
   document.getElementById('exTab2').classList.toggle('on',n===2);
 }
 function prefillExchange(name,val){ exSrcCat=name; exSrcVal=val; openExchange();
-  const sel=document.getElementById('rxCat'); [...sel.options].forEach(o=>{ if(o.text===name) sel.value=o.text; });
+  document.getElementById('rxCat').value=name;
   document.getElementById('rxValue').value=val; doExchange(); toast('喵~ 按这价帮你换'); }
 function pickFromHistory(){
   const ins = DB.transactions.filter(t=>t.direction==='in').sort((a,b)=>b.date.localeCompare(a.date));
