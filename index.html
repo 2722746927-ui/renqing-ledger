@@ -393,9 +393,16 @@
     <div class="card">
       <p class="muted" style="margin-bottom:10px">办事那天，门口先生记的红本本，拍下来，一页变一叠账。喵~</p>
       <input type="file" id="bookFile" accept="image/*" capture="environment" style="display:none" onchange="bookPicked(this)">
-      <div style="border:1.5px dashed var(--line);border-radius:14px;padding:22px;text-align:center;cursor:pointer" onclick="document.getElementById('bookFile').click()">
-        <div style="font-size:26px">📕</div>
-        <p style="font-size:13px;color:var(--ink-2);margin-top:6px">拍一页礼金簿（或选图片）</p>
+      <input type="file" id="bookFileAlbum" accept="image/*" style="display:none" onchange="bookPicked(this)">
+      <div style="display:flex;gap:10px">
+        <div style="flex:1;border:1.5px dashed var(--line);border-radius:14px;padding:18px 10px;text-align:center;cursor:pointer" onclick="document.getElementById('bookFile').click()">
+          <div style="font-size:24px">📷</div>
+          <p style="font-size:13px;color:var(--ink-2);margin-top:6px">拍照</p>
+        </div>
+        <div style="flex:1;border:1.5px dashed var(--line);border-radius:14px;padding:18px 10px;text-align:center;cursor:pointer" onclick="document.getElementById('bookFileAlbum').click()">
+          <div style="font-size:24px">🖼️</div>
+          <p style="font-size:13px;color:var(--ink-2);margin-top:6px">从相册选择</p>
+        </div>
       </div>
       <img id="bookPreview" style="display:none;width:100%;border-radius:12px;margin:10px 0">
       <label>或把礼金簿内容粘贴进来（每行：名字 金额）</label>
@@ -413,9 +420,16 @@
     <div class="card">
       <p class="muted" style="margin-bottom:10px">拍张请柬照，账房猫帮你把日子变成提醒。喵~</p>
       <input type="file" id="inviteFile" accept="image/*" capture="environment" style="display:none" onchange="invitePicked(this)">
-      <div style="border:1.5px dashed var(--line);border-radius:14px;padding:22px;text-align:center;cursor:pointer" onclick="document.getElementById('inviteFile').click()">
-        <div style="font-size:26px">📷</div>
-        <p style="font-size:13px;color:var(--ink-2);margin-top:6px">点击拍照或选择请柬图片</p>
+      <input type="file" id="inviteFileAlbum" accept="image/*" style="display:none" onchange="invitePicked(this)">
+      <div style="display:flex;gap:10px">
+        <div style="flex:1;border:1.5px dashed var(--line);border-radius:14px;padding:18px 10px;text-align:center;cursor:pointer" onclick="document.getElementById('inviteFile').click()">
+          <div style="font-size:24px">📷</div>
+          <p style="font-size:13px;color:var(--ink-2);margin-top:6px">拍照</p>
+        </div>
+        <div style="flex:1;border:1.5px dashed var(--line);border-radius:14px;padding:18px 10px;text-align:center;cursor:pointer" onclick="document.getElementById('inviteFileAlbum').click()">
+          <div style="font-size:24px">🖼️</div>
+          <p style="font-size:13px;color:var(--ink-2);margin-top:6px">从相册选择</p>
+        </div>
       </div>
       <img id="invitePreview" style="display:none;width:100%;border-radius:12px;margin:10px 0">
       <label>或者：把请柬文字粘贴进来</label>
