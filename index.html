@@ -115,6 +115,10 @@
   .list > .row:last-child { border-bottom:none; }
   .del-btn { flex:none; cursor:pointer; opacity:.32; padding:4px; display:flex; align-items:center; transition:opacity .15s; }
   .del-btn:hover { opacity:1; color:var(--warm); }
+  .swipe-row { position:relative; overflow:hidden; border-bottom:1px solid var(--line); }
+  .swipe-row:last-child { border-bottom:none; }
+  .swipe-del { position:absolute; right:0; top:0; bottom:0; width:76px; background:var(--warm); color:#fff; display:flex; align-items:center; justify-content:center; gap:3px; font-size:13px; }
+  .swipe-content { position:relative; background:var(--card); transition:transform .25s ease; z-index:1; display:flex; align-items:center; gap:12px; padding:13px 14px; cursor:pointer; }
   .tag { flex:none; width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; }
   .tag.out { background:var(--warm-soft); color:var(--warm); }
   .tag.in { background:var(--green-soft); color:var(--green); }
@@ -329,7 +333,8 @@
     <select id="addHousehold"></select>
     <button class="btn ghost small" style="margin-bottom:12px" onclick="quickAddHousehold()">＋ 新建一户</button>
     <label>事件类型 *</label>
-    <select id="addType"></select>
+    <input id="addType" list="eventTypeList" placeholder="如：婚礼、满月" autocomplete="off">
+    <datalist id="eventTypeList"></datalist>
     <label>日期（阳历）*</label>
     <input type="date" id="addDate">
     <label>农历（可选，如 八月十五）</label>
@@ -350,7 +355,8 @@
       <input type="number" id="giftValue" placeholder="300">
     </div>
     <label>经手人</label>
-    <select id="addHandler"></select>
+    <input id="addHandler" list="handlerList" placeholder="如：我、我爸" autocomplete="off">
+    <datalist id="handlerList"></datalist>
     <label>对方当事人（如：他家闺女）</label>
     <input type="text" id="addCounterpart" placeholder="可不填">
     <label>备注</label>
@@ -808,8 +814,10 @@ function renderFeed(){
 function openAdd(){
   const sel = document.getElementById('addHousehold');
   sel.innerHTML = DB.households.map(h=>`<option value="${h.id}">${esc(h.name)}</option>`).join('');
-  document.getElementById('addType').innerHTML = Object.keys(EVENT_META).map(k=>`<option>${k}</option>`).join('');
-  document.getElementById('addHandler').innerHTML = DB.settings.members.map(m=>`<option>${esc(m)}</option>`).join('');
+  document.getElementById('eventTypeList').innerHTML = Object.keys(EVENT_META).map(k=>`<option value="${esc(k)}">`).join('');
+  document.getElementById('handlerList').innerHTML = DB.settings.members.map(m=>`<option value="${esc(m)}">`).join('');
+  document.getElementById('addType').value='';
+  document.getElementById('addHandler').value = DB.settings.members[0]||'';
   document.getElementById('addDate').value = localDateStr();
   document.getElementById('addAmount').value='';
   document.getElementById('giftName').value=''; document.getElementById('giftValue').value='';
@@ -856,11 +864,56 @@ function saveTx(){
 function renderHouseholds(){
   document.getElementById('householdList').innerHTML = DB.households.map(h=>{
     const {out,inn} = hSums(h.id);
-    return `<div class="row" onclick="openH('${h.id}')">
-      <span class="tag n">${esc(h.name[0])}</span>
-      <div class="info"><p>${esc(h.name)}</p><span>${esc(h.relation)} · 亲疏${h.closeness} · 往来${DB.transactions.filter(t=>t.householdId===h.id).length}笔</span></div>
-      <b class="amount ${inn-out>=0?'in':'out'}">${fmt(inn-out)}</b></div>`;
+    return `<div class="swipe-row">
+      <div class="swipe-del" data-hid="${h.id}"><svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M9 3v1H4v2h16V4h-5V3H9zM6 8l1 13h10l1-13H6z"/></svg>删除</div>
+      <div class="swipe-content" data-hid="${h.id}">
+        <span class="tag n">${esc(h.name[0])}</span>
+        <div class="info"><p>${esc(h.name)}</p><span>${esc(h.relation)} · 亲疏${h.closeness} · 往来${DB.transactions.filter(t=>t.householdId===h.id).length}笔</span></div>
+        <b class="amount ${inn-out>=0?'in':'out'}">${fmt(inn-out)}</b>
+      </div></div>`;
   }).join('') || '<div class="empty">还没有户，点下面新建</div>';
+  initSwipe();
+}
+let swipeOpenRow=null;
+function initSwipe(){
+  const list=document.getElementById('householdList');
+  let startX=0,row=null,moved=false,openAtStart=false;
+  list.ontouchstart=e=>{
+    const el=e.target.closest('.swipe-content');
+    if(!el) return;
+    if(swipeOpenRow&&swipeOpenRow!==el){ swipeOpenRow.classList.remove('open'); swipeOpenRow=null; }
+    row=el; startX=e.touches[0].clientX; moved=false; openAtStart=row.classList.contains('open');
+  };
+  list.ontouchmove=e=>{
+    if(!row) return;
+    const dx=e.touches[0].clientX-startX;
+    if(Math.abs(dx)>6){ moved=true; e.preventDefault(); }
+    const base=openAtStart?-76:0;
+    const off=Math.max(-76,Math.min(0,base+dx));
+    row.style.transition='none';
+    row.style.transform='translateX('+off+'px)';
+  };
+  list.ontouchend=e=>{
+    if(!row) return;
+    row.style.transition=''; row.style.transform='';
+    const dx=e.changedTouches[0].clientX-startX;
+    if(moved){
+      row._sw=true;
+      if(dx<-30){ row.classList.add('open'); swipeOpenRow=row; }
+      else if(dx>30){ row.classList.remove('open'); if(openAtStart) swipeOpenRow=null; }
+    } else if(row.classList.contains('open')){
+      row.classList.remove('open'); swipeOpenRow=null; row._sw=true;
+    }
+    row=null;
+  };
+  list.onclick=e=>{
+    const del=e.target.closest('.swipe-del');
+    if(del){ delHousehold(del.dataset.hid); return; }
+    const el=e.target.closest('.swipe-content');
+    if(!el) return;
+    if(el._sw){ el._sw=false; return; }
+    const hid=el.dataset.hid; if(hid) openH(hid);
+  };
 }
 function hSums(hid){
   let out=0,inn=0;
@@ -957,10 +1010,12 @@ function exportHouseholdCsv(){
 }
 function editTx(id){
   const t = DB.transactions.find(x=>x.id===id); if(!t) return;
+  document.getElementById('eventTypeList').innerHTML = Object.keys(EVENT_META).map(k=>`<option value="${esc(k)}">`).join('');
+  document.getElementById('handlerList').innerHTML = DB.settings.members.map(m=>`<option value="${esc(m)}">`).join('');
   const g = t.gifts[0]||{name:'',value:null};
   openModal(`<h3>编辑这笔往来</h3>
     <label>方向</label><select id="mDir"><option value="out" ${t.direction==='out'?'selected':''}>我随出</option><option value="in" ${t.direction==='in'?'selected':''}>我收进</option></select>
-    <label>事件类型</label><select id="mType">${Object.keys(EVENT_META).map(k=>`<option ${t.type===k?'selected':''}>${k}</option>`).join('')}</select>
+    <label>事件类型</label><input id="mType" list="eventTypeList" value="${esc(t.type)}" autocomplete="off">
     <label>日期</label><input type="date" id="mDate" value="${t.date||''}">
     <label>形式</label><select id="mKind" onchange="mKindSwitch()"><option value="cash" ${t.kind!=='gift'?'selected':''}>现金</option><option value="gift" ${t.kind==='gift'?'selected':''}>实物礼品</option></select>
     <div id="mCashBox" style="${t.kind==='gift'?'display:none':''}">
@@ -970,7 +1025,7 @@ function editTx(id){
       <label>礼品名称 *</label><input id="mGiftName" value="${esc(g.name)}" placeholder="如：茶叶礼盒">
       <label>估值（元，可空=心意）</label><input type="number" id="mGiftValue" value="${g.value??''}" placeholder="如 300">
     </div>
-    <label>经手人</label><select id="mHandler">${DB.settings.members.map(m=>`<option ${t.handler===m?'selected':''}>${esc(m)}</option>`).join('')}</select>
+    <label>经手人</label><input id="mHandler" list="handlerList" value="${esc(t.handler)}" autocomplete="off">
     <label>对方（收礼人/随礼人，可不填）</label><input id="mCounterpart" value="${esc(t.counterpart||'')}">
     <label>备注</label><input id="mNote" value="${esc(t.note||'')}">
     <div class="rowflex" style="margin-top:10px">
@@ -1024,7 +1079,7 @@ function editHousehold(hid){
   const h = hid ? DB.households.find(x=>x.id===hid) : null;
   openModal(`<h3>${h?'编辑户':'新建户'}</h3>
     <label>户名 *</label><input id="mName" value="${h?h.name:''}" placeholder="如：张建国家">
-    <label>关系</label><select id="mRel">${RELATION_LIST.map(r=>`<option ${h&&h.relation===r?'selected':''}>${r}</option>`).join('')}</select>
+    <label>关系</label><input id="mRel" list="relationList" value="${h?esc(h.relation):''}" placeholder="如：亲戚、朋友" autocomplete="off"><datalist id="relationList">${RELATION_LIST.map(r=>`<option value="${esc(r)}">`).join('')}</datalist>
     <label>亲疏（1最亲）</label><select id="mClose">${[1,2,3].map(n=>`<option ${h&&h.closeness===n?'selected':''}>${n}</option>`).join('')}</select>
     <label>对方家庭成员（逗号分隔）</label><input id="mMembers" value="${h?h.members.join(','):''}" placeholder="张建国,王丽">
     <label>备注</label><input id="mNote" value="${h?h.note:''}">
@@ -1055,7 +1110,7 @@ function delHousehold(hid){
 }
 function quickAddHousehold(){
   openModal(`<h3>新建一户</h3><label>户名 *</label><input id="mName" placeholder="如：张建国家">
-    <label>关系</label><select id="mRel">${RELATION_LIST.map(r=>`<option>${r}</option>`).join('')}</select>
+    <label>关系</label><input id="mRel" list="relationList" placeholder="如：亲戚、朋友" autocomplete="off"><datalist id="relationList">${RELATION_LIST.map(r=>`<option value="${esc(r)}">`).join('')}</datalist>
     <div class="rowflex" style="margin-top:10px"><button class="btn ghost" onclick="closeModal()">取消</button>
     <button class="btn" onclick="doQuickAdd()">建好</button></div>`);
 }
