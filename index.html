@@ -1300,7 +1300,7 @@ function saveInvite(){
 let exSrcCat = null, exSrcVal = null;
 function openExchange(){
   const cats = [...new Set(GIFT_LIBRARY.map(g=>g.cat))];
-  document.getElementById('rxCat').innerHTML = cats.map(c=>`<option>${c}</option>`).join('') + '<option>其他</option>';
+  document.getElementById('rxCat').innerHTML = cats.map(c=>`<option>${c}</option>`).join('') + '<option>编辑</option>';
   doExchange(); exTab(1); go('view-exchange');
 }
 function exTab(n){
