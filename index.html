@@ -127,9 +127,9 @@
   .row .info { flex:1; min-width:0; }
   .row .info p { font-size:14px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .row .info span { font-size:11px; color:var(--ink-2); display:block; margin-top:2px; }
-  .row b.amount { font-size:14px; margin-left:auto; }
-  .row b.amount.out { color:var(--warm); }
-  .row b.amount.in { color:var(--green); }
+  .row b.amount, .swipe-content b.amount { font-size:14px; margin-left:auto; }
+  .row b.amount.out, .swipe-content b.amount.out { color:var(--warm); }
+  .row b.amount.in, .swipe-content b.amount.in { color:var(--green); }
   .addbtn { border:1.5px dashed var(--line); background:none; border-radius:var(--radius); padding:13px;
     width:100%; color:var(--ink-2); font-size:13px; cursor:pointer; margin-top:10px; }
 
@@ -949,7 +949,7 @@ function renderHouseholds(){
       <div class="swipe-content" data-hid="${h.id}">
         <span class="tag n">${esc(h.name[0])}</span>
         <div class="info"><p>${esc(h.name)}</p><span>${esc(h.relation)} · 亲疏${h.closeness} · 往来${DB.transactions.filter(t=>t.householdId===h.id).length}笔</span></div>
-        <b class="amount ${inn-out>=0?'in':'out'}">${fmt(inn-out)}</b>
+        <b class="amount ${inn-out>=0?'in':'out'}">${inn-out>=0?'+':'-'}${fmt(Math.abs(inn-out))}</b>
       </div></div>`;
   }).join('') || '<div class="empty">还没有户，点下面新建</div>';
   initSwipe();
